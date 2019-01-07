@@ -230,6 +230,156 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2019/01/05/Hexo使用theme-next主题部分无法推送github远程仓库/">
+
+    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="ego">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Ego">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2019/01/05/Hexo使用theme-next主题部分无法推送github远程仓库/" itemprop="url">Hexo使用theme/next主题部分无法推送github远程仓库</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2019-01-05T15:08:01+08:00">
+                2019-01-05
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h2 id="Hexo使用theme-next主题部分无法推送github远程仓库"><a href="#Hexo使用theme-next主题部分无法推送github远程仓库" class="headerlink" title="Hexo使用theme/next主题部分无法推送github远程仓库"></a>Hexo使用theme/next主题部分无法推送github远程仓库</h2><h4 id="关键词-Hexo-next-github-git-submodule-data-files-next-yml"><a href="#关键词-Hexo-next-github-git-submodule-data-files-next-yml" class="headerlink" title="关键词: Hexo, next, github, git submodule, data files, next.yml"></a>关键词: Hexo, next, github, git submodule, data files, next.yml</h4><h4 id="前置步骤"><a href="#前置步骤" class="headerlink" title="前置步骤"></a>前置步骤</h4><ol>
+<li><p>你想要用hexo+github搭建自己的博客(master构建部署分支/hexo编辑分支)</p>
+<p><del>这种方法你的博客在github上是透明的哦</del>~</p>
+</li>
+<li><p>使用<code>git clone</code>的方式下载了theme/next的库包</p>
+</li>
+<li><p>在hexo分支上推送博客内容, 换台电脑<code>git clone</code>自己的博客仓库  </p>
+<p>​</p>
+</li>
+</ol>
+<h4 id="产生的问题"><a href="#产生的问题" class="headerlink" title="产生的问题"></a>产生的问题</h4><p>​    在新电脑上<code>git clone</code>的仓库hexo分支中theme/next文件是空的, 在github上查看next文件发现为submodule形式. 也就是你如果想要在新电脑上编辑自己的博客, 那么你需要重新<code>git clone</code>官方next远程仓库.也就是说你此前next主题相关的主题配置<code>_config.yml</code>, 你已经丢失了!!!<del>除非你去旧电脑上copy(手动滑稽.ipg</del></p>
+<p><del>我不信就我一个人会有这个问题,所以我就去next的github的issue查了一下,果然有跟我一样问题的大兄弟,不过人家在2016年提出问题并得到解决了</del></p>
+<h4 id="解决方案"><a href="#解决方案" class="headerlink" title="解决方案"></a>解决方案</h4><p>此时分两种情况:</p>
+<p>如果你已经对next主题进行自己的定制化修改, 那么你需要方案①;</p>
+<p>如果你只是对next主题文件<code>_config.yml</code>进行了简单的修改, 那么你需要方案②;</p>
+<ol>
+<li>fork + submodule</li>
+<li>使用Hexo data files配置主题 Theme configurations using Hexo data files</li>
+</ol>
+<p><del>因为目前我只需求对主题简单配置,并且能够在公司or家里电脑能够同步配置,所以我使用的方案②,具体操作如下 很简单;</del></p>
+<p>方案②:</p>
+<p>通过这个Data Files，你可以将所有的主题配置放置在站点的 <code>source/_data/next.yml</code> 文件中。原先放置在 站点配置文件 中的选项可以迁移到新的位置，同时，主题配置文件可以不用做任何修改。若后续版本有配置相关的改动时，你仅需在 <code>next.yml</code> 中做相应调整即可</p>
+<ol>
+<li>请先确保你所使用的 Hexo 版本在 3 以上</li>
+<li>在站点的 <code>source/_data</code> 目录下新建 <code>next.yml</code> 文件（<code>_data</code>目录可能需要新建）</li>
+<li>迁移站点配置文件和主题配置文件中的配置到 <code>next.yml</code> 中</li>
+<li>使用 <code>--config source/_data/next.yml</code> 参数启动服务器, 生成或者部署。<br>  例如: <code>hexo clean --config source/_data/next.yml &amp;&amp; hexo g --config source/_data/next.yml</code>。</li>
+</ol>
+<h4 id="写在最后"><a href="#写在最后" class="headerlink" title="写在最后"></a>写在最后</h4><p>这样你就可以愉快的开始自己的hexo博客之旅啦~</p>
+<p>希望可以帮助到更多的人!</p>
+<p>ps: 本篇文章参考了<a href="https://github.com/iissnan/hexo-theme-next/blob/master/README.cn.md" target="_blank" rel="noopener">官方文档</a>和<a href="https://github.com/iissnan/hexo-theme-next/issues/932" target="_blank" rel="noopener">官方issue#932</a></p>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://yoursite.com/2018/12/26/hello-world/">
 
     <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
@@ -393,7 +543,7 @@
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">1</span>
+                  <span class="site-state-item-count">2</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
@@ -505,6 +655,9 @@
 
 
 
+  
+  
+
 
 
 
@@ -537,6 +690,16 @@
   
   
     <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/three/three.min.js"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/three/canvas_sphere.min.js"></script>
   
 
 
@@ -615,5 +778,5 @@
 
   
 
-</body>
+<script src="/live2dw/lib/L2Dwidget.min.js?0c58a1486de42ac6cc1c59c7d98ae887"></script><script>L2Dwidget.init({"log":false,"pluginJsPath":"lib/","pluginModelPath":"assets/","pluginRootPath":"live2dw/","tagMode":false});</script></body>
 </html>
