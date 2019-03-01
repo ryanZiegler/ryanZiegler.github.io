@@ -2,6 +2,8 @@
 title: Hexo使用theme/next主题部分无法推送github远程仓库
 date: 2019-01-05 15:08:01
 tags:
+     - 学习笔记
+     - git
 ---
 ## Hexo使用theme/next主题部分无法推送github远程仓库
 
