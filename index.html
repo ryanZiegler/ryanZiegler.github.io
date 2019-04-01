@@ -5,7 +5,7 @@
   
 
 
-<html class="theme-next muse use-motion" lang="zh-Hans">
+<html class="theme-next mist use-motion" lang="zh-Hans">
 <head><meta name="generator" content="Hexo 3.8.0">
   <meta charset="UTF-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
@@ -94,7 +94,7 @@
   var NexT = window.NexT || {};
   var CONFIG = {
     root: '/',
-    scheme: 'Muse',
+    scheme: 'Mist',
     version: '5.1.4',
     sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
     fancybox: true,
@@ -128,6 +128,16 @@
 
 
 
+
+  <script type="text/javascript">
+    var _hmt = _hmt || [];
+    (function() {
+      var hm = document.createElement("script");
+      hm.src = "https://hm.baidu.com/hm.js?a23546e481a878a6fe08dd6f52cd82d6";
+      var s = document.getElementsByTagName("script")[0];
+      s.parentNode.insertBefore(hm, s);
+    })();
+  </script>
 
 
 
@@ -188,6 +198,26 @@
         </li>
       
         
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br>
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br>
+            
+            分类
+          </a>
+        </li>
+      
+        
         <li class="menu-item menu-item-archives">
           <a href="/archives/" rel="section">
             
@@ -216,6 +246,133 @@
           <div id="content" class="content">
             
   <section id="posts" class="posts-expand">
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2019/03/25/记一道题/">
+
+    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="ego">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Ego">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2019/03/25/记一道题/" itemprop="url">记一道题</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2019-03-25T22:10:31+08:00">
+                2019-03-25
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          <h4 id="题目"><a href="#题目" class="headerlink" title="题目"></a>题目</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">- 下面代码中 a 在什么情况下会打印 1 ?</span><br><span class="line">var a = ?;</span><br><span class="line">if (a == 1 &amp;&amp; a == 2 &amp;&amp; a == 3) &#123;</span><br><span class="line">  console.log(1);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>同事老哥分享在群里的一道题目,题目来源于<a href="https://github.com/Advanced-Frontend/Daily-Interview-Question/blob/master/datum/summary.md#%E7%AC%AC-38-%E9%A2%98%E4%B8%8B%E9%9D%A2%E4%BB%A3%E7%A0%81%E4%B8%AD-a-%E5%9C%A8%E4%BB%80%E4%B9%88%E6%83%85%E5%86%B5%E4%B8%8B%E4%BC%9A%E6%89%93%E5%8D%B0-1" target="_blank" rel="noopener">Daily-Interview-Question</a></p>
+<p>我看到题目二话没说来了一句<code>var a = (function() {console.log(1)})();</code>,直接把老哥们皮出了一阵省略号…</p>
+<p>其实这题考察的应该是<code>==</code>的隐式转换, 当引用类型在比较运算符时,隐式转换会调用本类型toString或valueOf方法.</p>
+          <!--noindex-->
+          <div class="post-button text-center">
+            <a class="btn" href="/2019/03/25/记一道题/#more" rel="contents">
+              阅读全文 &raquo;
+            </a>
+          </div>
+          <!--/noindex-->
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
     
       
 
@@ -261,7 +418,7 @@
               
                 <span class="post-meta-item-text">发表于</span>
               
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2019-01-30T17:26:19+08:00">
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2019-01-30T10:09:19+08:00">
                 2019-01-30
               </time>
             
@@ -300,121 +457,15 @@
 
       
         
-          
-            <h2 id="写在前面"><a href="#写在前面" class="headerlink" title="写在前面"></a>写在前面</h2><p>时至今日,已经是我毕业工作的第0.5个年头了.遥想大二当年学的数据库原理,更多的是基于sql server 2008的,其中大部分知识已经回归了书本的怀抱.即使身为一名前端工程师,但平时工作中更多的是使用Node和sequlize框架和mysql数据库进行交互,感觉到有必要强化学习一下mysql知识.</p>
+          <h2 id="写在前面"><a href="#写在前面" class="headerlink" title="写在前面"></a>写在前面</h2><p>时至今日,已经是我毕业工作的第0.5个年头了.遥想大二当年学的数据库原理,更多的是基于sql server 2008的,其中大部分知识已经回归了书本的怀抱.即使身为一名前端工程师,但平时工作中更多的是使用Node和sequlize框架和mysql数据库进行交互,感觉到有必要强化学习一下mysql知识.</p>
 <p>买了一本MySQL必知必会,每天至少保证一小时的阅读时间,并根据自己的水平,记录对应的阅读笔记.</p>
-<h2 id="基础"><a href="#基础" class="headerlink" title="基础"></a>基础</h2><h4 id="连接到mysql"><a href="#连接到mysql" class="headerlink" title="连接到mysql"></a>连接到mysql</h4><ol>
-<li>本地服务器 localhost</li>
-<li>默认的端口 3306</li>
-<li>用户</li>
-<li>密码</li>
-</ol>
-<h4 id="了解mysql的简单指令"><a href="#了解mysql的简单指令" class="headerlink" title="了解mysql的简单指令"></a>了解mysql的简单指令</h4><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">SHOW TABLES 				// 返回当前选择的数据库内可用表的列表</span><br><span class="line">SHOW COLUMNS FROM 表名	   // 返回所有列(Field, Type, Null, Key, Default, Extra)</span><br><span class="line">DESCRIBE 表名 			   // 同上,为SHOW COLUMNS的一种快捷方式</span><br><span class="line">SHOW STATUS					// 显示广泛的服务器状态信息</span><br><span class="line">SHOW CREATE DATABASE		// 显示创建数据库SQL语句</span><br><span class="line">SHOW CREATE TABLE			// 显示创建表SQL语句</span><br><span class="line">SHOW GRANTS					// 显示授予用户的安全权限</span><br><span class="line">SHOW ERRORS					// 显示服务器错误消息</span><br><span class="line">SHOW WARNINGS				// 显示服务器警告消息</span><br><span class="line">HELP SHOW					// 显示允许的SHOW语句</span><br></pre></td></tr></table></figure>
-<h4 id="SQL语句常用命令"><a href="#SQL语句常用命令" class="headerlink" title="SQL语句常用命令"></a>SQL语句常用命令</h4><blockquote>
-<p>多条SQL语句必须以分号 ( ; ) 分隔</p>
-<p>SQL语句不区分大小写,一般关键字使用大写,列名表名使用小写,更易于阅读和调试</p>
-<p>处理SQL语句是,其中所有空格都被忽略</p>
-</blockquote>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">SELECT *						// 通配符 ( * ), 返回所有</span><br><span class="line">SELECT DISTINCT XX FROM 表名	   // 检索出不同的值,DISTINCT应用于所有列而非前置列</span><br><span class="line">SELECT XX FROM 表名 LIMIT 5      // 检索返回不多于5行(LIMIT 3,4 返回从行3开始的4行)</span><br><span class="line">									MYSQL5 支持LIMIT 4 OFFSET 3 从行3开始取4行</span><br></pre></td></tr></table></figure>
-<ul>
-<li>排序数据 ORDER BY</li>
-</ul>
-<p>数据一般将以它在底层表中的出现的顺序显示,无排序检索应该认为顺序无异议; 如果数据后来进行过更新或删除, 则此顺序将会受到MySQL重用回收存储空间的影响</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">ORDER BY 						// 检索数据以默认ASC升序A~Z排序(ORDER BY xx DESC 降序)</span><br><span class="line">* 应位于FROM子句之后,若使用LIMIT,需位于ORDER BY之后;</span><br><span class="line">	是否区分大小写取决于数据库的设置</span><br></pre></td></tr></table></figure>
-<ul>
-<li>WHERE子句操作符</li>
-</ul>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line">&lt;&gt; 等价于 != 即不等于,不匹配检查</span><br><span class="line">字符串值用单引号 &apos;&apos; 括起</span><br><span class="line">BETWEEN 范围检查</span><br><span class="line">IS NULL 空值检查</span><br><span class="line">* NULL与不匹配,匹配过滤或不匹配过滤时不返回</span><br><span class="line"></span><br><span class="line">* 组合WHERE子句</span><br><span class="line">AND 							// 与</span><br><span class="line">OR  							// 或</span><br><span class="line"></span><br><span class="line">* 计算次序</span><br><span class="line">AND在计算次序中优先级更高</span><br><span class="line">... WHERE vid = 10002 OR vid = 10003 AND price &gt;= 10;</span><br><span class="line">理解为 检索条件由id为10002,或者id为10003且价格大于等于10的</span><br><span class="line">=&gt; ... WHERE vid = 10002 OR (vid = 10003 AND price &gt;= 10);</span><br><span class="line"></span><br><span class="line">如果要检索由id为10002或10003,且价格都大于等于10的,应使用括号提高优先级</span><br><span class="line">=&gt; ... WHERE (vid = 10002 OR vid = 10003) AND price &gt;= 10;</span><br><span class="line"></span><br><span class="line">检索id为10002或10003,除了使用OR操作符外,还可以</span><br><span class="line">... WHERE vid IN (10002, 10003);</span><br><span class="line">* IN操作符一般比OR操作符执行更快,语法清楚且直观</span><br><span class="line"></span><br><span class="line">NOT 操作符用来否定后跟条件的关键字</span><br><span class="line">... WHERE vid NOT IN (10002, 10003);</span><br></pre></td></tr></table></figure>
-<ul>
-<li>通配符过滤</li>
-</ul>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">LIKE &apos;%p&apos;					// p结尾</span><br><span class="line">LIKE &apos;p%&apos;					// p开头</span><br><span class="line">LIKE &apos;%p%&apos;					// 包含p</span><br><span class="line"></span><br><span class="line">* &apos;_&apos; 用途与&apos;%&apos;一样,但只匹配单个字符而不是多个</span><br><span class="line">* 尾空格可能会干扰通配符匹配,最好的办法是使用函数去掉首尾空格,亦或者首尾使用%</span><br><span class="line">* %通配符无法匹配 NULL</span><br></pre></td></tr></table></figure>
-<ul>
-<li>MySQL正则表达式</li>
-</ul>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line">REGEXP (BINARY区分大小写) &apos;.000&apos;		// 匹配 000尾部</span><br><span class="line">* LIKE匹配整个列,REGEXP在列值内匹配</span><br><span class="line">* \\ 转义字符</span><br><span class="line">\\f 换页; \\n 换行; \\r 回车; \\t 制表; \\v 纵向制表; \\\ 匹配反斜杠\</span><br><span class="line"></span><br><span class="line">字符类</span><br><span class="line">[:alnum:]				任意字母和数字([a-zA-Z0-9])</span><br><span class="line">[:alpha:]				任意字符([a-zA-Z])</span><br><span class="line">[:blank:]				空格和制表([\\t])</span><br><span class="line">[:cntrl:]				ASCII控制字符(ASCII 0到31和127)</span><br><span class="line">[:digit:]				任意数字([0-9])</span><br><span class="line">[:graph:]				与[:print:]相同,但不包括空格</span><br><span class="line">[:lower:]				任意小写字母([a-z])</span><br><span class="line">[:print:]				任意可打印字符</span><br><span class="line">[:punct:]				既不在[:alnum:]又不在[:cntrl:]中的任意字符</span><br><span class="line">[:space:]				包括空格在内的任意空白字符([\\f\\n\\r\\t\\v])</span><br><span class="line">[:upper:]				任意大写字母([A-Z])</span><br><span class="line">[:xdigit:]				任意十六进制数字([a-fA-F0-9])</span><br><span class="line"></span><br><span class="line">重复元字符</span><br><span class="line">*						0个或多个匹配</span><br><span class="line">+						1个或多个匹配(&#123;1,&#125;)</span><br><span class="line">?						0个或1个匹配(&#123;0,1&#125;)</span><br><span class="line">&#123;n&#125;						指定数目的匹配</span><br><span class="line">&#123;n,&#125;					不少于指定数目的匹配</span><br><span class="line">&#123;n,m&#125;					匹配数目的范围(m不超过255)</span><br><span class="line"></span><br><span class="line">定位元字符</span><br><span class="line">^						文本的开始</span><br><span class="line">$						文本的结束</span><br><span class="line">[[:&lt;:]]					词的开始</span><br><span class="line">[[:&gt;:]]					词的结束</span><br><span class="line"></span><br><span class="line">简单的正则表达式测试</span><br><span class="line">SELECT &apos;hello&apos; REGEXP &apos;[0-9]&apos;;		=&gt; 返回0</span><br><span class="line">REGEXP检查总返回0或1</span><br></pre></td></tr></table></figure>
-<ul>
-<li>函数</li>
-</ul>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br></pre></td><td class="code"><pre><span class="line">Concat()				// 拼接函数</span><br><span class="line">Trim()					// 去除首尾空格(RTrim(), LTrim())</span><br><span class="line">Now()					// 返回当前日期和时间</span><br><span class="line">Left()					// 返回串左边的字符</span><br><span class="line">Length()				// 返回串的长度</span><br><span class="line">Locate()				// 找出串的一个子串</span><br><span class="line">Lower()					// 将串转换为小写</span><br><span class="line">Right()					// 返回串右边的字符</span><br><span class="line">Soundex()				// 返回串的SOUNDEX值</span><br><span class="line">SubString()				// 返回子串的字符</span><br><span class="line">Upper()					// 将串转换为大写</span><br><span class="line"></span><br><span class="line">日期和时间处理函数</span><br><span class="line">NOW()					// 返回当前的日期和时间</span><br><span class="line">CURDATE()				// 返回当前的日期</span><br><span class="line">CURTIME()				// 返回当前的时间</span><br><span class="line">DATE()					// 提取日期或日期/时间表达式的日期部分</span><br><span class="line">EXTRACT()				// 返回日期/时间按的单独部分</span><br><span class="line">DATE_ADD()				// 给日期添加指定的时间间隔</span><br><span class="line">DATE_SUB()				// 从日期减去指定的时间间隔</span><br><span class="line">DATEDIFF()				// 返回两个日期之间的天数</span><br><span class="line">DATE_FORMAT()			// 用不同的格式显示日期/时间</span><br><span class="line"></span><br><span class="line">常用数值处理函数</span><br><span class="line">Abs()					// 绝对值</span><br><span class="line">Cos()					// 角度余弦</span><br><span class="line">Exp()					// 指数值</span><br><span class="line">Mod()					// 除操作的余数</span><br><span class="line">Pi()					// 圆周率</span><br><span class="line">Rand()					// 随机数</span><br><span class="line">Sin()					// 角度正弦</span><br><span class="line">Sqrt()					// 平方根</span><br><span class="line">Tan()					// 角度正切</span><br><span class="line"></span><br><span class="line">SQL聚集函数</span><br><span class="line">AVG()					// 平均值,忽略NULL行</span><br><span class="line">COUNT()					// 行数,COUNT(*)包括空值NULL和非空值,COUNT(column)忽略NULL行</span><br><span class="line">MAX()					// 最大值</span><br><span class="line">MIN()					// 最小值</span><br><span class="line">SUM()					// 列值和</span><br><span class="line">* MySQL允许MIN()和MAX()返回文本数据列</span><br><span class="line">* 指定DISTINCT参数只包含不同值,必须指定列名</span><br></pre></td></tr></table></figure>
-<ul>
-<li>别名 AS</li>
-</ul>
-<ol>
-<li>通过<code>AS</code>别名执行算术计算<code>SELECT a*b AS c FROM 表名</code></li>
-<li>表别名不返回到客户机,列别名返回客户机</li>
-</ol>
-<ul>
-<li>分组数据 GROUP BY</li>
-</ul>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">GROUP BY 				// 必须出现在WHERE之后,ORDER BY之前</span><br><span class="line">WITH ROLLUP				// 可以得到分组汇总</span><br><span class="line">HAVING					// 过滤分组,WHERE过滤行</span><br><span class="line">* WHERE分组前过滤,HAVING分组后过滤</span><br><span class="line">* 使用GROUP BY的时候应给也给出ORDER BY子句</span><br><span class="line">* 顺序: SELECT =&gt; FROM =&gt; WHERE =&gt; GROUP BY =&gt; HAVING =&gt; ORDER BY =&gt; LIMIT</span><br></pre></td></tr></table></figure>
-<ul>
-<li>子查询</li>
-</ul>
-<p>子查询嵌套不如联结,不建议疯狂套子查询;</p>
-<ul>
-<li>联结 JOIN</li>
-</ul>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line">* 完全限定列名,用.分隔表名和列名</span><br><span class="line">* 笛卡尔积 没有WHERE子句设定联结条件的表关系返回笛卡尔积,即n*m,故所有联结都应有WHERE子句</span><br><span class="line"></span><br><span class="line">1.内部联结/等值联结</span><br><span class="line">SELECT v_name, p_name, p_price</span><br><span class="line">FROM v INNER JOIN p</span><br><span class="line">ON v.v_id = p.v_id;</span><br><span class="line">* 性能考虑,联结的表越多,性能下降越厉害</span><br><span class="line"></span><br><span class="line">2.自联结</span><br><span class="line">SELECT p1.p_id, p1.p_name</span><br><span class="line">FROM p AS p1, p AS p2</span><br><span class="line">WHERE p1.v_id = p2.v_id</span><br><span class="line">AND p2.p_id = &apos;DTNTR&apos;;</span><br><span class="line"></span><br><span class="line">3.自然联结</span><br><span class="line">* 排除多次出现,使每个列只返回一次</span><br><span class="line">* 自己选择SELECT 列来完成自然联结</span><br><span class="line"></span><br><span class="line">4.外部联结</span><br><span class="line">LEFT OUTER JOIN				// 左联结</span><br><span class="line">RIGHT OUTER JOIN			// 右联结</span><br></pre></td></tr></table></figure>
-<ul>
-<li>组合查询 UNION</li>
-</ul>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">UNION 每个查询必须包含相同的列,表达式或聚集函数(次序无需相同)</span><br><span class="line">* UNION从查询结果集中自动去除了重复行;如不需自动去重,使用UNION ALL</span><br><span class="line">* 只能使用一条ORDER BY子句,必须出现在最后一条SELECT语句后</span><br><span class="line">* 可以使用UNION组合查询应用不同的表</span><br></pre></td></tr></table></figure>
-<ul>
-<li>全文本搜索 FULLTEXT</li>
-</ul>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">* 并不是所有引擎都支持全文本搜索,MyISAM支持全文本搜索,InnoDB不支持</span><br><span class="line">* 启用全文本搜索支持在创建表时接受FULLTEXT(列名),自动维护索引</span><br><span class="line">* 导入数据应该先导入,再修改表,定义FULLTEXT</span><br><span class="line">Match()指定被搜索的列, Against指定要使用的搜索表达式</span><br><span class="line">WITH QUERY EXPANSION 查询扩展</span><br><span class="line">IN BOOLEAN MODE 布尔文本搜索</span><br></pre></td></tr></table></figure>
-<ul>
-<li>插入数据 INSERT</li>
-</ul>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">INSERT操作可能很耗时,特别是有很多索引需要更新时,遇到重要的SELECT可以给INSERT操作降权</span><br><span class="line">INSERT LOW_PRIORITY INTO</span><br><span class="line">* 单条INSERT插入多条语句比多条INSERT语句快</span><br><span class="line"></span><br><span class="line">插入检索出的数据, 无需关注SELECT中的列名,可包含WHERE子句</span><br><span class="line">INSERT SELECT</span><br></pre></td></tr></table></figure>
-<ul>
-<li>更新和删除数据 UPDATE DELETE</li>
-</ul>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">UPDATE 表名 SET 列名 = &apos;&apos;(, 列名 = &apos;&apos;) WHERE ...;</span><br><span class="line">* IGNORE关键字 UPDATE IGNORE 表名... 错误发生前更新的所有行恢复原值</span><br><span class="line">删除指定列使用UPDATE ... SET 列名 = NULL</span><br><span class="line"></span><br><span class="line">DELETE FROM 表名 WHERE ...; </span><br><span class="line">* 生产上一般使用软删除,不使用物理删除</span><br><span class="line">* 不要忽略WHERE子句</span><br><span class="line">* 更快的删除 TRUNATE TABLE,实际是删除原来的表并重建一个表,而不是逐行删除</span><br></pre></td></tr></table></figure>
-<ul>
-<li>创建和操纵表 CREATE/ALTER</li>
-</ul>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line">ddl 数据定义语言(data define language)</span><br><span class="line">dml 数据操纵语言(data manipulation language)</span><br><span class="line"></span><br><span class="line">* 表需要主键,使用AUTO_INCREMENT,自增长,每个表只允许存在一个,且必须被索引</span><br><span class="line">CREATE TABLE 表名</span><br><span class="line">(</span><br><span class="line">	列名		类型		NOT NULL	AUTO_INCREMENT,</span><br><span class="line">	...</span><br><span class="line">	PRIMARY KEY(列名),</span><br><span class="line">	FULLTEXT(列名)</span><br><span class="line">) ENGINE=MyISAM;</span><br><span class="line">* 表不存在时创建,应在表名后加 IF NOT EXISTS</span><br><span class="line">* NULL值是没有值,不是空串(&apos;&apos;),空串是一个有效值</span><br><span class="line">* 默认值,MySQL不允许使用函数作为默认值,只支持常量</span><br><span class="line"></span><br><span class="line">引擎类型</span><br><span class="line">1.InnoDB 可靠的事务处理引擎,不支持全文本搜索</span><br><span class="line">2.MEMORY 功能等同于MyISAM,数据存储在内存(非磁盘),速度很快,适用于临时表</span><br><span class="line">3.MyISAM 性能极高的引擎,支持全文本搜索,不支持事务处理</span><br><span class="line">* 引擎类型可以混用</span><br><span class="line">* 外键不能跨引擎,使用一个引擎的表不能引用具有使用不同引擎的表的外键</span><br><span class="line"></span><br><span class="line">ALTER TABLE 更新表</span><br><span class="line">* 使用前应做一个完整的备份(模式和数据的备份),数据库表的操作不能更改</span><br><span class="line"></span><br><span class="line">DROP TABLE 删除表</span><br><span class="line">RENAME TABLE 表名 TO 新表名</span><br></pre></td></tr></table></figure>
-<ul>
-<li>视图 VIEW</li>
-</ul>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">CREATE VIEW 创建视图</span><br><span class="line">SHOW CREATE VIEW viewname 查看创建视图的语句</span><br><span class="line">DROP VIEW viewname</span><br><span class="line">CREATE OR REPLACE VIEW 更新视图</span><br><span class="line"></span><br><span class="line">* 视图是虚拟的表,只包含使用时动态检索数据的查询</span><br><span class="line">* 使用多个联结和过滤创建复杂视图会发现性能下降得很厉害</span><br><span class="line">* 一般,视图用于检索SELECT,不用于INSERT,UPDATE和DELETE</span><br></pre></td></tr></table></figure>
-<ul>
-<li>存储过程 PROCEDURE</li>
-</ul>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br></pre></td><td class="code"><pre><span class="line">使用存储过程</span><br><span class="line">CALL procedurename(arg, arg...)</span><br><span class="line"></span><br><span class="line">创建存储过程</span><br><span class="line">CREATE PROCEDURE procedurename()</span><br><span class="line">BEGIN</span><br><span class="line">	...</span><br><span class="line">	</span><br><span class="line">END;</span><br><span class="line"></span><br><span class="line">* mysql命令行客户机的分隔符</span><br><span class="line">为防止语法错误,可以临时更改命令行使用程序的语句分隔符:</span><br><span class="line">DELIMITER //</span><br><span class="line">CREATE PROCEDURE procedurename()</span><br><span class="line">BEGIN</span><br><span class="line">	SELECT ...</span><br><span class="line">	FROM 表名;</span><br><span class="line">END //</span><br><span class="line">DELIMITER ;</span><br><span class="line"></span><br><span class="line">删除存储过程</span><br><span class="line">DROP PROCEDURE (IF EXISTS) procedurename; (IF EXISTS 仅当存在时删除,可以避免错误)</span><br><span class="line"></span><br><span class="line">* 一般存储过程并不显示结果,而是把结果返回给你指定的变量  DECIMAL(8,2)=&gt;8位数字,小数点2位</span><br><span class="line">CREATE PROCEDURE procedurename(</span><br><span class="line">	OUT pl DECIMAL(8,2),</span><br><span class="line">	OUT ph DECIMAL(8,2),</span><br><span class="line">	OUT pa DECIMAL(8,2),</span><br><span class="line">)</span><br><span class="line">BEGIN</span><br><span class="line">	...</span><br><span class="line">END;</span><br><span class="line"></span><br><span class="line">* MySQL支持IN(传递给存储过程),OUT(从存储过程中传出)和INOUT(对存储过程传入和传出)</span><br><span class="line"></span><br><span class="line">使用procedurename存储过程</span><br><span class="line">call procedurename(@pl, @ph, @pa);</span><br><span class="line">* 所有MySQL变量都必须以@开始</span><br><span class="line"></span><br><span class="line">检查存储过程</span><br><span class="line">SHOW PROCEDURE STATUS</span><br><span class="line">显示过程状态结果(指定过滤模式)</span><br><span class="line">SHOW PROCEDURE STATUS LIKE &apos;ordertotal&apos;;</span><br></pre></td></tr></table></figure>
-<ul>
-<li>游标 CURSOR</li>
-</ul>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">游标主要用于交互式应用,其中给用户需要滚动屏幕上的数据,并对数据进行浏览或作出更改.</span><br><span class="line"></span><br><span class="line">创建游标</span><br><span class="line">CREATE PROCEDURE procedurename()</span><br><span class="line">BEGIN</span><br><span class="line">	DECLARE cursorname CURSOR</span><br><span class="line">	FOR</span><br><span class="line">	SELECT order_num FROM orders;</span><br><span class="line">END;</span><br><span class="line">* 存储过程处理完成后,游标就消失</span><br><span class="line"></span><br><span class="line">打开和关闭游标</span><br><span class="line">OPEN cursorname;</span><br><span class="line">CLOSE cursorname;</span><br><span class="line">* 使用声明过的游标不需要再次声明,用OPEN语句打开即可</span><br><span class="line">* 隐含关闭,MySQL会在END时自动关闭它</span><br><span class="line"></span><br><span class="line">* DECLARE定义的局部变量必须在定义任意游标或句柄之前定义,而句柄必须在游标之后定义</span><br><span class="line">* REPEAT 语句对游标进行循环</span><br></pre></td></tr></table></figure>
-<ul>
-<li>触发器 TRIGGER</li>
-</ul>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line">事件发生时自动执行</span><br><span class="line"></span><br><span class="line">创建触发器 *保持每个数据库的触发器名唯一</span><br><span class="line">CREATE TRIGGER triggername AFTER INSERT ON 表名</span><br><span class="line">FOR EACH ROW SELECT &apos;Product added&apos;;</span><br><span class="line"></span><br><span class="line">* 仅有表支持触发器,视图不支持</span><br><span class="line">* 每个表最多支持6个触发器</span><br><span class="line">			INSERT</span><br><span class="line">BEFORE		UPDATE		AFTER</span><br><span class="line">			DELETE</span><br><span class="line">通常,BEFORE用于数据验证和净化,确保传入表中的数据确实是需要的数据</span><br><span class="line">			</span><br><span class="line">删除触发器</span><br><span class="line">DROP TRIGGER triggername;</span><br><span class="line">* 触发器不能更新或覆盖,必须先删除,然后重新创建</span><br><span class="line"></span><br><span class="line">INSERT触发器</span><br><span class="line">TODO</span><br><span class="line">DELETE触发器</span><br><span class="line">TODO</span><br><span class="line">UPDATE触发器</span><br><span class="line">TODO</span><br><span class="line"></span><br><span class="line">* MySQL触发器不支持CALL语句,这表示不能从触发器内调用存储过程,存储过程代码需复制到触发器内</span><br></pre></td></tr></table></figure>
-<ul>
-<li>事务 TRANSACTION</li>
-</ul>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><span class="line">用来维护数据库的完整性,保证成批的MySQL操作要么完全执行,要么完全不执行</span><br><span class="line"></span><br><span class="line">事务 transaction 指一组SQL语句</span><br><span class="line">回退 rollback 指撤销指定SQL语句的过程</span><br><span class="line">提交 commit 指将未存储的SQL语句结果写入数据库表</span><br><span class="line">保留点 savepoint 指事务中是指的临时占位符,可以对它发布回退</span><br><span class="line"></span><br><span class="line">控制事务处理</span><br><span class="line">1.将SQL语句分解为逻辑块</span><br><span class="line">2.明确规定数据何时回退,何时不回退</span><br><span class="line"></span><br><span class="line">使用ROLLBACK回退</span><br><span class="line">SELECT * FORM 表名;</span><br><span class="line">START TRANSATION;</span><br><span class="line">DELETE FROM 表名;</span><br><span class="line">ROLLBACK;</span><br><span class="line">* 无法回退SELECT语句,这样做也没有意义</span><br><span class="line">* 不能回退CREATE或DROP操作,不会被撤销</span><br><span class="line"></span><br><span class="line">使用COMMIT</span><br><span class="line">START TRANSACTION;</span><br><span class="line">DELETE FROM 表1 WHERE o_num = 20010;</span><br><span class="line">DELETE FROM 表2 WHERE o_num = 20010;</span><br><span class="line">COMMIT;</span><br><span class="line">如果第一条DELETE起作用,第二条失败,则DELETE不会被提交</span><br><span class="line"></span><br><span class="line">* COMMIT或ROLLBACK执行后,事务会自动关闭</span><br><span class="line"></span><br><span class="line">支持部分事务回退</span><br><span class="line">使用保留点,标识唯一名字</span><br><span class="line">SACEPOINT pointname</span><br><span class="line">* 保留点越多越好,在执行一条ROLLBACK或COMMIT后自动释放</span><br><span class="line">* MySQL5之后可以用RELEASE SAVEPOINT释放保留点</span><br></pre></td></tr></table></figure>
-<ul>
-<li>全球化和本地化</li>
-</ul>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">字符集/编码/校对</span><br><span class="line">字符集我们一般使用utf8mb4</span><br><span class="line"></span><br><span class="line">SHOW CHARACTER SET;		// 显示所有可用字符集及其默认描述和校对</span><br><span class="line">SHOW COLLATION;			// 显示所有可用的校对</span><br></pre></td></tr></table></figure>
-<ul>
-<li>安全管理</li>
-</ul>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line">本地学习实践可以使用root用户,生产上不使用root用户,防止无意的错误</span><br><span class="line"></span><br><span class="line">创建用户账号</span><br><span class="line">CREATE USER name IDENTIFIED BY &apos;password&apos;;</span><br><span class="line">重命名用户账号</span><br><span class="line">RENAME USER name TO newname;</span><br><span class="line">删除用户账户</span><br><span class="line">DROP USER name;</span><br><span class="line"></span><br><span class="line"> 查看用户权限</span><br><span class="line"> SHOW GRANTS FOR name;</span><br><span class="line"> &apos;USAGE&apos; =&gt; 无权限</span><br><span class="line"> </span><br><span class="line"> GRANT SELECT ON 库名.* TO 用户名;</span><br><span class="line"> 允许用户在库所有表上使用SELECT</span><br><span class="line"> * GRANT反操作为REVOKE,用来撤销特定的权限</span><br><span class="line"> 简化多次授权</span><br><span class="line"> GRANT SELECT, INSERT ON 库名.* TO 用户名;</span><br><span class="line"> </span><br><span class="line"> 更改口令</span><br><span class="line"> SET PASSWORD FOR 用户名 = Password(&apos;密码&apos;);</span><br><span class="line"> * 不指定用户时,更新当前用户登录口令</span><br></pre></td></tr></table></figure>
-<ul>
-<li>数据库维护</li>
-</ul>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">FLUSH TABLES			// 刷新未写数据</span><br><span class="line"></span><br><span class="line">* 可以使用BACKUP TABLE或SELECT INTO OUTFILE转储所有数据到某个外部文件</span><br><span class="line">* 数据可以用RESTORE TABLE来复原</span><br><span class="line"></span><br><span class="line">ANALYZE TABLE 表名;		// 检查表键是否正确</span><br><span class="line">CHECK TABLE 表名;</span><br><span class="line">* 尽量手动启动服务器</span><br><span class="line"></span><br><span class="line">查看日志文件</span><br><span class="line">1.错误日志 hostname.err 位于data目录,可用--log-error命令行选项更改</span><br><span class="line">2.查询日志 hostname.log 位于data目录,可用--log命令行选项更改</span><br><span class="line">3.二进制日志 hostname-bin 位于data目录,可用--log-bin命令行选项更改</span><br><span class="line">4.缓慢查询日志 hostname-slow.log 位于data目录,可用--log-slow-queries命令行选项更改</span><br><span class="line"></span><br><span class="line">FLUSH LOGS来刷新和重新开始所有日志文件</span><br></pre></td></tr></table></figure>
-<ul>
-<li>改善性能</li>
-</ul>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">MySQL是一个多用户多线程的DBMS,如果任务重某一个执行缓慢,则所有请求都会执行缓慢</span><br><span class="line">SHOW PROCESSLIST 显示所有活动进程及其线程ID和执行时间</span><br><span class="line">KILL 终结某个特定的进程,需管理员权限</span><br><span class="line"></span><br><span class="line">* 索引改善数据检索的性能,但损害数据插入,删除和更新的性能.根据情况添加索引.</span><br><span class="line">* LIKE很慢,一般最好使用FULLTEXT</span><br><span class="line"></span><br><span class="line">* 最重要的规则就是,每条规则在某些条件下都会被打破</span><br><span class="line">我的理解就是 任何无视环境背景情况的规则都是瞎逼逼</span><br></pre></td></tr></table></figure>
-<h2 id="进阶"><a href="#进阶" class="headerlink" title="进阶"></a>进阶</h2><p><del>这本书真的很基础,进阶的内容需要我从另外的地方去探索!</del></p>
-
-          
+          <!--noindex-->
+          <div class="post-button text-center">
+            <a class="btn" href="/2019/01/30/每天一点MySql/#more" rel="contents">
+              阅读全文 &raquo;
+            </a>
+          </div>
+          <!--/noindex-->
         
       
     </div>
@@ -503,6 +554,28 @@
           </span>
 
           
+            <span class="post-category">
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope="" itemtype="http://schema.org/Thing">
+                  <a href="/categories/转载/" itemprop="url" rel="index">
+                    <span itemprop="name">转载</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
 
           
             
@@ -531,76 +604,20 @@
 
       
         
-          
-            <p>— 从创意到精致结果的五个步骤</p>
+          <p>— 从创意到精致结果的五个步骤</p>
 <blockquote>
 <p>原文链接：<a href="https://medium.freecodecamp.org/how-to-write-a-great-technical-blog-post-414c414b67f6" target="_blank" rel="noopener">https://medium.freecodecamp.org/how-to-write-a-great-technical-blog-post-414c414b67f6</a></p>
 </blockquote>
 <p>我已经在开源社区工作了近 5 年，建立和推广包括 Meteor 和 Apollo 在内的开发者工具。在那个时候，我发现博客是传播思想的最有效方式之一。</p>
 <p>写博文不像视频或会谈需要花费很长时间来准备，是个受众广且很容易完成的。我个人也从写作中获得了很多好处：它帮助我组织了自己的想法，向人们传播了我喜欢的技术，还让人们知道了我。</p>
 <p>2014 年我发布了第一篇博文，到现在我已经在 Medium 上写了 68 篇文章了，其中一些文章有超过 50k 的浏览次数和 1000 个粉丝。我还为我的朋友和同事编辑过很多帖子。经过那段时间的锻炼，我已经有了一个把概念实现到发布成文的策略。</p>
-<p>在本文中，我们将介绍撰写帖子的过程的五个主要步骤：</p>
-<ul>
-<li>全力找一个好主题</li>
-<li>明确目标和受众</li>
-<li>有一个好的开头结尾并且内容翔实</li>
-<li>获得反馈并进行迭代</li>
-<li>添加最后润色：包装，发布和宣传</li>
-</ul>
-<p>让我们进入第一步吧！</p>
-<h2 id="1-全力找一个好主题"><a href="#1-全力找一个好主题" class="headerlink" title="1.全力找一个好主题"></a>1.全力找一个好主题</h2><p>你需要先有一些想法才能开始写作。 那些想要开始写博客的人跟我说，没有想法通常是他们的主要阻碍问题。</p>
-<p>最简单的策略是写你所知道的。 如果你花了很多时间学习某些东西，并且你认为你可以在几分钟内解释它，那么你将为读者提供很多价值。</p>
-<p>另一个想法是写一个某个区域没有的内容。 例如，目前关于如何申请技术会议的帖子不多，因此有关这方面的内容可填补社区空白。</p>
-<p>以下是可以使用的一些特定类型的帖子。 示例来自 Apollo 博客上与 GraphQL 相关的帖子：</p>
-<ol>
-<li><p>实现特定目标的分步指南：“使用 FlatList 在 React Native 中构建一个出色的可滚动列表”或“使用 Apollo 和 Recompose 简化您的 React 组件”。 这些对于那些想要快速做一个 demo 的读者来说非常棒。</p>
-</li>
-<li><p>对特定主题的深入调查：“使用 GraphQL 中的可空性”或“GraphQL 查询的剖析”。 如果你的目标受众是对此感兴趣并且想要用一杯咖啡的时间来了解更多知识的话，这些内容会非常有用。</p>
-</li>
-<li><p>围绕一个常用主题较为有用的清单：“调用 GraphQL API 的 4 种简单方法”或“静态 GraphQL 查询的 5 种好处”。 这是一个有趣，轻量级的阅读，因为你不必阅读整体，是很容易利用碎片时间来完成的。</p>
-</li>
-</ol>
-<p>还有一些共同关注的问题，现在来打消这些疑虑：</p>
-<ol>
-<li><p>关于这个话题已经被讨论过了。 不要担心。 即使这个想法以前被写过，你也可以用自己的视角，来阐述在你这种特定环境下的不同做法。</p>
-</li>
-<li><p>我的想法不够有趣。 我的很多朋友和同事都不写，因为他们担心他们的结论可能很无聊或显而易见。 这很正常啊！ 如果你是某一方面的专家，那么理所当然你所写的结论对你来说会很无聊。关键是你的观众还不知道那些东西呢。</p>
-</li>
-</ol>
-<p>即使说了这么多，在最后也很难预测什么样的主题能成为一个精彩（火）的文章，哪样的不会，并且往往是坚持写或换个文章，而不是一个精彩的主题。 我的主要建议是尝试写几个不同的东西，看看哪些有用。</p>
-<h2 id="2-明确目标和受众"><a href="#2-明确目标和受众" class="headerlink" title="2.明确目标和受众"></a>2.明确目标和受众</h2><p>既然你已了解自己的主题，那么需要为自己的帖子提供受众群体和目标。 谁会阅读它，他们将从中获得什么？</p>
-<p>你的目标需要具体，以便你可以将所有精力集中在一个主要想法上。 对于这篇文章，目标不能只是“写博客”。 我需要一个更具体的目标：</p>
-<ul>
-<li>受众：想要开始撰写博客的人，特别是有关技术主题的人，但还没有做到。</li>
-<li>目标：为人们提供一套具体的步骤和指示，以便他们可以开始。</li>
-</ul>
-<p>一旦有了这些，通过删除任何没有用的东西来保证你的文章主旨，避免添加额外的细节，因为他们需要有关联。 我发现相对简洁的帖子，阅读时间在 5-10 分钟时是成功概率最大的。</p>
-<p>了解观众的知识背景能够根据他们现有的知识提炼文章，有助于确定如何发布和宣传文章的内容。 例如，我希望在 freeCodeCamp 上发布这个，因为目标受众中的很多人可能已经阅读过该出版物。</p>
-<h2 id="3-有一个好的开头结尾并且内容翔实"><a href="#3-有一个好的开头结尾并且内容翔实" class="headerlink" title="3.有一个好的开头结尾并且内容翔实"></a>3.有一个好的开头结尾并且内容翔实</h2><p>当文章结构走向奇怪时，会让人迷惑。 剧情曲折在虚构的短篇小说中可能是一个很大的好处。但如果能让读者获得想要的知识，那么这会是一篇更容易被阅读完的技术文章。 良好的文章结构，可以让读者顺利完成阅读。</p>
-<h3 id="介绍"><a href="#介绍" class="headerlink" title="介绍"></a>介绍</h3><p>文章的第一段或第二段一般既不能吸引读者的注意也不会让他们失去兴趣。开篇可以用一小段话和一副大图来帮助读者理解文章的主旨。然后，告诉读者他们阅读此文会知道什么。提前揭秘可能很诱人，但要注意：如果你没有好的提示，读者就不会围绕这个点去阅读。</p>
-<h3 id="中间"><a href="#中间" class="headerlink" title="中间"></a>中间</h3><p>现在已经告诉读者会阅读什么，请满足他们的期待！您可以根据自己的需要随意添加详细信息，并在途中留下标志性文章以引导他们。多多使用标题，编号列表等来帮助读者了解他们阅读到文章的哪个部分，使他们能够跳读到他们最感兴趣的部分。</p>
-<h3 id="结论"><a href="#结论" class="headerlink" title="结论"></a>结论</h3><p>不要在文章末尾一下子就结束。如果你的读者已经读完了所有的内容，他们仍然会关注最后还有什么。给他们一个所学东西的快速总结，一篇文章的最后也可能只是告诉他们如果感兴趣就快行动起来吧。</p>
-<p>关于结构部分，我所建议的也许不是最有创意的，应该还有其他方法可以做到更好。 但简单的结构是与读者沟通的最直接方式。</p>
-<h2 id="4-获得反馈并进行迭代"><a href="#4-获得反馈并进行迭代" class="headerlink" title="4.获得反馈并进行迭代"></a>4.获得反馈并进行迭代</h2><p>在你阅读之前，你不会知道人们会从你的写作中得到什么。这才是你所设想的主题，目标，文章细节和结构真正受到考验的地方。如果想获得好结果，则不能跳过此步骤。</p>
-<p>当你想要获得反馈意见时，你可能觉得自己有点强势，或者你可能会担心这会产生负面影响，但是人们比你期望的更愿意提供帮助。在将文章发布到外面之前，最好先了解一下如何发布文章效果会更好。当我把这些都考虑进去时，我得到了一些非常有价值的反馈，使得文章内容更好，更有针对性。</p>
-<p>你应该向你的读者问些什么呢？我的主要建议是尽可能保持开放性。尽量不要事先解释你的意图。按原样移交草案，并询问您的审稿人他们从中得到了什么或应该更改什么。当互联网上有人遇到您的文章时，他们是没有任何额外的（和读者认识啊这种的）背景的独立个体。</p>
-<p>从反馈中验证的主要内容是：此帖子是否会实现您在第 2 步中确定的目标？保持迭代，直到你确定能明确目标和受众。</p>
-<h2 id="5-添加最后润色：包装，发布和宣传"><a href="#5-添加最后润色：包装，发布和宣传" class="headerlink" title="5.添加最后润色：包装，发布和宣传"></a>5.添加最后润色：包装，发布和宣传</h2><p>既然你已经有了这个想法，目标，结构和一些反馈，那么现在是时候对所有东西进行润色并发布它了。</p>
-<h3 id="包装"><a href="#包装" class="headerlink" title="包装"></a>包装</h3><p>想出一个好的标题和副标题，并确保你的文章至少有一张图。这是人们在 Twitter 或 Facebook 上分享文章时会看到的内容，也是让人们对阅读此文感兴趣的机会。</p>
-<p>文章看起来和感觉起来都要很专业，这十分重要，这样才能够让内容真正有意义。最低目标应该是在文章中没有拼写错误，语法错误或奇怪的格式。如果您有一位非常善于发现小细节的朋友，请让他们在发布前仔细阅读。</p>
-<p>在 freeCodeCamp 上发布文章也有一些关于编写样式和格式的好建议。既然你已经在你的文章中投入了太多的精力，那么额外增加一点努力来真正地完善它使之受众更广泛是非常值得的。</p>
-<p>最后，请备注上引用的作品或帮助审核和修改帖子的人来表达谢意。</p>
-<h3 id="发布"><a href="#发布" class="headerlink" title="发布"></a>发布</h3><p>终于到了这一步！选择你计划发布文章的网站，以便最有可能覆盖你的受众群体。Medium 通常是技术文章的汇集地，让人们很容易看到你的文章。</p>
-<p>关于奖励，尝试将你的文章发布到相关的技术网站中，以便于他们帮助分享你的文章 - 由此考虑，我选择了 freeCodeCamp，因为我认为这篇文章与他们的读者有关。如果你也想这样做，请按以下方式提交你的文章。你感兴趣的领域的技术网站也可能正在寻找文章，所以不要害怕联系！</p>
-<h3 id="宣传"><a href="#宣传" class="headerlink" title="宣传"></a>宣传</h3><p>虽然你已经发布了文章，但是还没完事！如果你希望人们看到你撰写的内容并从中获取价值，请务必在读者可能会浏览的地方分享。这可能包括 Facebook 群组，Reddit，黑客新闻，LinkedIn 或任何其他平台。此外，请务必在你自己的社交媒体帐户（如 Twitter）上分享你的创作。你的朋友会很高兴阅读，分享和赞成你写的东西！</p>
-<p>现在，你已经完成了。去喝咖啡或散步 - 从开始到结束一篇博文都是不小的壮举。阅读社区的任何反馈和回复，以便你可以不断改进。当你有另一个想法时，就再去写一篇吧！</p>
-<h2 id="练习没有替代品"><a href="#练习没有替代品" class="headerlink" title="练习没有替代品"></a>练习没有替代品</h2><p>在写作时，我们只是介绍了五个最重要的事情，从提出想法到发布。 现在你已经阅读过了，你尝试应用这个建议，看看哪些对你有用。</p>
-<p>我会留下最后一点建议。 我在过去 3 年中从博客中学到的主要内容是，我绝对无法预测哪些文章会无人问津，哪些文章最终会成为一个完整的系列。 有时候，我会花费好几天的时间来打磨一篇文章的每个细节，不允许一点错误。 也有时候，只是在深夜花了几个小时写的“GraphQL vs. REST”，成为了我有史以来最热门的文章。</p>
-<p>因此，即使你的第一篇，第二篇或第三篇文章没有成功，也要继续尝试新的东西，把你的想法写出来，并随着时间的推移而改进。 世界想要听到你要说的话。 去告诉他们！</p>
-<p>非常感谢 Anvisha Pai，Angela Zhang，Katie Siegel 和 freeCodeCamp 的编辑帮助审阅这篇文章。</p>
-<p>本文转自<a href="https://juejin.im/post/5c336723f265da61117a7812?utm_source=gold_browser_extension" target="_blank" rel="noopener">掘金</a>,译者为 幸运儿.</p>
-
-          
+          <!--noindex-->
+          <div class="post-button text-center">
+            <a class="btn" href="/2019/01/22/转-如何撰写精彩的技术博客文章/#more" rel="contents">
+              阅读全文 &raquo;
+            </a>
+          </div>
+          <!--/noindex-->
         
       
     </div>
@@ -717,8 +734,7 @@
 
       
         
-          
-            <h2 id="Hexo使用theme-next主题部分无法推送github远程仓库"><a href="#Hexo使用theme-next主题部分无法推送github远程仓库" class="headerlink" title="Hexo使用theme/next主题部分无法推送github远程仓库"></a>Hexo使用theme/next主题部分无法推送github远程仓库</h2><h4 id="关键词-Hexo-next-github-git-submodule-data-files-next-yml"><a href="#关键词-Hexo-next-github-git-submodule-data-files-next-yml" class="headerlink" title="关键词: Hexo, next, github, git submodule, data files, next.yml"></a>关键词: Hexo, next, github, git submodule, data files, next.yml</h4><h4 id="前置步骤"><a href="#前置步骤" class="headerlink" title="前置步骤"></a>前置步骤</h4><ol>
+          <h2 id="Hexo使用theme-next主题部分无法推送github远程仓库"><a href="#Hexo使用theme-next主题部分无法推送github远程仓库" class="headerlink" title="Hexo使用theme/next主题部分无法推送github远程仓库"></a>Hexo使用theme/next主题部分无法推送github远程仓库</h2><h4 id="关键词-Hexo-next-github-git-submodule-data-files-next-yml"><a href="#关键词-Hexo-next-github-git-submodule-data-files-next-yml" class="headerlink" title="关键词: Hexo, next, github, git submodule, data files, next.yml"></a>关键词: Hexo, next, github, git submodule, data files, next.yml</h4><h4 id="前置步骤"><a href="#前置步骤" class="headerlink" title="前置步骤"></a>前置步骤</h4><ol>
 <li><p>你想要用hexo+github搭建自己的博客(master构建部署分支/hexo编辑分支)</p>
 <p><del>这种方法你的博客在github上是透明的哦</del>~</p>
 </li>
@@ -730,27 +746,13 @@
 </ol>
 <h4 id="产生的问题"><a href="#产生的问题" class="headerlink" title="产生的问题"></a>产生的问题</h4><p>​    在新电脑上<code>git clone</code>的仓库hexo分支中theme/next文件是空的, 在github上查看next文件发现为submodule形式. 也就是你如果想要在新电脑上编辑自己的博客, 那么你需要重新<code>git clone</code>官方next远程仓库.也就是说你此前next主题相关的主题配置<code>_config.yml</code>, 你已经丢失了!!!<del>除非你去旧电脑上copy(手动滑稽.ipg</del></p>
 <p><del>我不信就我一个人会有这个问题,所以我就去next的github的issue查了一下,果然有跟我一样问题的大兄弟,不过人家在2016年提出问题并得到解决了</del></p>
-<h4 id="解决方案"><a href="#解决方案" class="headerlink" title="解决方案"></a>解决方案</h4><p>此时分两种情况:</p>
-<p>如果你已经对next主题进行自己的定制化修改, 那么你需要方案①;</p>
-<p>如果你只是对next主题文件<code>_config.yml</code>进行了简单的修改, 那么你需要方案②;</p>
-<ol>
-<li>fork + submodule</li>
-<li>使用Hexo data files配置主题 Theme configurations using Hexo data files</li>
-</ol>
-<p><del>因为目前我只需求对主题简单配置,并且能够在公司or家里电脑能够同步配置,所以我使用的方案②,具体操作如下 很简单;</del></p>
-<p>方案②:</p>
-<p>通过这个Data Files，你可以将所有的主题配置放置在站点的 <code>source/_data/next.yml</code> 文件中。原先放置在 站点配置文件 中的选项可以迁移到新的位置，同时，主题配置文件可以不用做任何修改。若后续版本有配置相关的改动时，你仅需在 <code>next.yml</code> 中做相应调整即可</p>
-<ol>
-<li>请先确保你所使用的 Hexo 版本在 3 以上</li>
-<li>在站点的 <code>source/_data</code> 目录下新建 <code>next.yml</code> 文件（<code>_data</code>目录可能需要新建）</li>
-<li>迁移站点配置文件和主题配置文件中的配置到 <code>next.yml</code> 中</li>
-<li>使用 <code>--config source/_data/next.yml</code> 参数启动服务器, 生成或者部署。<br>  例如: <code>hexo clean --config source/_data/next.yml &amp;&amp; hexo g --config source/_data/next.yml</code>。</li>
-</ol>
-<h4 id="写在最后"><a href="#写在最后" class="headerlink" title="写在最后"></a>写在最后</h4><p>这样你就可以愉快的开始自己的hexo博客之旅啦~</p>
-<p>希望可以帮助到更多的人!</p>
-<p>ps: 本篇文章参考了<a href="https://github.com/iissnan/hexo-theme-next/blob/master/README.cn.md" target="_blank" rel="noopener">官方文档</a>和<a href="https://github.com/iissnan/hexo-theme-next/issues/932" target="_blank" rel="noopener">官方issue#932</a></p>
-
-          
+          <!--noindex-->
+          <div class="post-button text-center">
+            <a class="btn" href="/2019/01/05/Hexo使用theme-next主题部分无法推送github远程仓库/#more" rel="contents">
+              阅读全文 &raquo;
+            </a>
+          </div>
+          <!--/noindex-->
         
       
     </div>
@@ -839,6 +841,28 @@
           </span>
 
           
+            <span class="post-category">
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope="" itemtype="http://schema.org/Thing">
+                  <a href="/categories/Testing/" itemprop="url" rel="index">
+                    <span itemprop="name">Testing</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
 
           
             
@@ -867,18 +891,14 @@
 
       
         
-          
-            <p>Welcome to <a href="https://hexo.io/" target="_blank" rel="noopener">Hexo</a>! This is your very first post. Check <a href="https://hexo.io/docs/" target="_blank" rel="noopener">documentation</a> for more info. If you get any problems when using Hexo, you can find the answer in <a href="https://hexo.io/docs/troubleshooting.html" target="_blank" rel="noopener">troubleshooting</a> or you can ask me on <a href="https://github.com/hexojs/hexo/issues" target="_blank" rel="noopener">GitHub</a>.</p>
-<h2 id="Quick-Start"><a href="#Quick-Start" class="headerlink" title="Quick Start"></a>Quick Start</h2><h3 id="Create-a-new-post"><a href="#Create-a-new-post" class="headerlink" title="Create a new post"></a>Create a new post</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo new <span class="string">"My New Post"</span></span><br></pre></td></tr></table></figure>
-<p>More info: <a href="https://hexo.io/docs/writing.html" target="_blank" rel="noopener">Writing</a></p>
-<h3 id="Run-server"><a href="#Run-server" class="headerlink" title="Run server"></a>Run server</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo server</span><br></pre></td></tr></table></figure>
-<p>More info: <a href="https://hexo.io/docs/server.html" target="_blank" rel="noopener">Server</a></p>
-<h3 id="Generate-static-files"><a href="#Generate-static-files" class="headerlink" title="Generate static files"></a>Generate static files</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo generate</span><br></pre></td></tr></table></figure>
-<p>More info: <a href="https://hexo.io/docs/generating.html" target="_blank" rel="noopener">Generating</a></p>
-<h3 id="Deploy-to-remote-sites"><a href="#Deploy-to-remote-sites" class="headerlink" title="Deploy to remote sites"></a>Deploy to remote sites</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo deploy</span><br></pre></td></tr></table></figure>
-<p>More info: <a href="https://hexo.io/docs/deployment.html" target="_blank" rel="noopener">Deployment</a></p>
-
-          
+          <p>Welcome to <a href="https://hexo.io/" target="_blank" rel="noopener">Hexo</a>! This is your very first post. Check <a href="https://hexo.io/docs/" target="_blank" rel="noopener">documentation</a> for more info. If you get any problems when using Hexo, you can find the answer in <a href="https://hexo.io/docs/troubleshooting.html" target="_blank" rel="noopener">troubleshooting</a> or you can ask me on <a href="https://github.com/hexojs/hexo/issues" target="_blank" rel="noopener">GitHub</a>.</p>
+          <!--noindex-->
+          <div class="post-button text-center">
+            <a class="btn" href="/2018/12/26/hello-world/#more" rel="contents">
+              阅读全文 &raquo;
+            </a>
+          </div>
+          <!--/noindex-->
         
       
     </div>
@@ -960,20 +980,54 @@
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">4</span>
+                  <span class="site-state-item-count">5</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
             
 
             
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">2</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
 
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">5</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
             
 
           </nav>
 
           
 
+          
+            <div class="links-of-author motion-element">
+                
+                  <span class="links-of-author-item">
+                    <a href="https://github.com/ryanZiegler" target="_blank" title="GitHub">
+                      
+                        <i class="fa fa-fw fa-github"></i>GitHub</a>
+                  </span>
+                
+                  <span class="links-of-author-item">
+                    <a href="mailto:egoT@gmail.com" target="_blank" title="E-Mail">
+                      
+                        <i class="fa fa-fw fa-envelope"></i>E-Mail</a>
+                  </span>
+                
+            </div>
           
 
           
@@ -1019,7 +1073,7 @@
 
 
 
-  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Muse</a> v5.1.4</div>
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Mist</a> v5.1.4</div>
 
 
 

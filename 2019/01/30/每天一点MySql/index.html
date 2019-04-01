@@ -5,7 +5,7 @@
   
 
 
-<html class="theme-next muse use-motion" lang="zh-Hans">
+<html class="theme-next mist use-motion" lang="zh-Hans">
 <head><meta name="generator" content="Hexo 3.8.0">
   <meta charset="UTF-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
@@ -68,6 +68,8 @@
 
 
 
+  <meta name="keywords" content="学习笔记,mySql,">
+
 
 
 
@@ -78,13 +80,14 @@
 
 
 <meta name="description" content="写在前面时至今日,已经是我毕业工作的第0.5个年头了.遥想大二当年学的数据库原理,更多的是基于sql server 2008的,其中大部分知识已经回归了书本的怀抱.即使身为一名前端工程师,但平时工作中更多的是使用Node和sequlize框架和mysql数据库进行交互,感觉到有必要强化学习一下mysql知识. 买了一本MySQL必知必会,每天至少保证一小时的阅读时间,并根据自己的水平,记录对应的阅">
+<meta name="keywords" content="学习笔记,mySql">
 <meta property="og:type" content="article">
 <meta property="og:title" content="每天一点MySql">
 <meta property="og:url" content="http://yoursite.com/2019/01/30/每天一点MySql/index.html">
 <meta property="og:site_name" content="Ego">
 <meta property="og:description" content="写在前面时至今日,已经是我毕业工作的第0.5个年头了.遥想大二当年学的数据库原理,更多的是基于sql server 2008的,其中大部分知识已经回归了书本的怀抱.即使身为一名前端工程师,但平时工作中更多的是使用Node和sequlize框架和mysql数据库进行交互,感觉到有必要强化学习一下mysql知识. 买了一本MySQL必知必会,每天至少保证一小时的阅读时间,并根据自己的水平,记录对应的阅">
 <meta property="og:locale" content="zh-Hans">
-<meta property="og:updated_time" content="2019-01-30T09:27:20.857Z">
+<meta property="og:updated_time" content="2019-04-01T06:24:21.980Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="每天一点MySql">
 <meta name="twitter:description" content="写在前面时至今日,已经是我毕业工作的第0.5个年头了.遥想大二当年学的数据库原理,更多的是基于sql server 2008的,其中大部分知识已经回归了书本的怀抱.即使身为一名前端工程师,但平时工作中更多的是使用Node和sequlize框架和mysql数据库进行交互,感觉到有必要强化学习一下mysql知识. 买了一本MySQL必知必会,每天至少保证一小时的阅读时间,并根据自己的水平,记录对应的阅">
@@ -95,7 +98,7 @@
   var NexT = window.NexT || {};
   var CONFIG = {
     root: '/',
-    scheme: 'Muse',
+    scheme: 'Mist',
     version: '5.1.4',
     sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
     fancybox: true,
@@ -129,6 +132,16 @@
 
 
 
+
+  <script type="text/javascript">
+    var _hmt = _hmt || [];
+    (function() {
+      var hm = document.createElement("script");
+      hm.src = "https://hm.baidu.com/hm.js?a23546e481a878a6fe08dd6f52cd82d6";
+      var s = document.getElementsByTagName("script")[0];
+      s.parentNode.insertBefore(hm, s);
+    })();
+  </script>
 
 
 
@@ -184,6 +197,26 @@
               <i class="menu-item-icon fa fa-fw fa-home"></i> <br>
             
             首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br>
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br>
+            
+            分类
           </a>
         </li>
       
@@ -259,7 +292,7 @@
               
                 <span class="post-meta-item-text">发表于</span>
               
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2019-01-30T17:26:19+08:00">
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2019-01-30T10:09:19+08:00">
                 2019-01-30
               </time>
             
@@ -299,7 +332,9 @@
       
         <h2 id="写在前面"><a href="#写在前面" class="headerlink" title="写在前面"></a>写在前面</h2><p>时至今日,已经是我毕业工作的第0.5个年头了.遥想大二当年学的数据库原理,更多的是基于sql server 2008的,其中大部分知识已经回归了书本的怀抱.即使身为一名前端工程师,但平时工作中更多的是使用Node和sequlize框架和mysql数据库进行交互,感觉到有必要强化学习一下mysql知识.</p>
 <p>买了一本MySQL必知必会,每天至少保证一小时的阅读时间,并根据自己的水平,记录对应的阅读笔记.</p>
-<h2 id="基础"><a href="#基础" class="headerlink" title="基础"></a>基础</h2><h4 id="连接到mysql"><a href="#连接到mysql" class="headerlink" title="连接到mysql"></a>连接到mysql</h4><ol>
+<a id="more"></a>
+<h2 id="基础"><a href="#基础" class="headerlink" title="基础"></a>基础</h2><p>####连接到mysql</p>
+<ol>
 <li>本地服务器 localhost</li>
 <li>默认的端口 3306</li>
 <li>用户</li>
@@ -349,7 +384,7 @@
 </ul>
 <p>子查询嵌套不如联结,不建议疯狂套子查询;</p>
 <ul>
-<li>联结 JOIN</li>
+<li>联结 JION</li>
 </ul>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line">* 完全限定列名,用.分隔表名和列名</span><br><span class="line">* 笛卡尔积 没有WHERE子句设定联结条件的表关系返回笛卡尔积,即n*m,故所有联结都应有WHERE子句</span><br><span class="line"></span><br><span class="line">1.内部联结/等值联结</span><br><span class="line">SELECT v_name, p_name, p_price</span><br><span class="line">FROM v INNER JOIN p</span><br><span class="line">ON v.v_id = p.v_id;</span><br><span class="line">* 性能考虑,联结的表越多,性能下降越厉害</span><br><span class="line"></span><br><span class="line">2.自联结</span><br><span class="line">SELECT p1.p_id, p1.p_name</span><br><span class="line">FROM p AS p1, p AS p2</span><br><span class="line">WHERE p1.v_id = p2.v_id</span><br><span class="line">AND p2.p_id = &apos;DTNTR&apos;;</span><br><span class="line"></span><br><span class="line">3.自然联结</span><br><span class="line">* 排除多次出现,使每个列只返回一次</span><br><span class="line">* 自己选择SELECT 列来完成自然联结</span><br><span class="line"></span><br><span class="line">4.外部联结</span><br><span class="line">LEFT OUTER JOIN				// 左联结</span><br><span class="line">RIGHT OUTER JOIN			// 右联结</span><br></pre></td></tr></table></figure>
 <ul>
@@ -424,6 +459,14 @@
 
     <footer class="post-footer">
       
+        <div class="post-tags">
+          
+            <a href="/tags/学习笔记/" rel="tag"># 学习笔记</a>
+          
+            <a href="/tags/mySql/" rel="tag"># mySql</a>
+          
+        </div>
+      
 
       
       
@@ -442,6 +485,10 @@
           <span class="post-nav-divider"></span>
 
           <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2019/03/25/记一道题/" rel="prev" title="记一道题">
+                记一道题 <i class="fa fa-chevron-right"></i>
+              </a>
             
           </div>
         </div>
@@ -520,20 +567,54 @@
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">4</span>
+                  <span class="site-state-item-count">5</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
             
 
             
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">2</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
 
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">5</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
             
 
           </nav>
 
           
 
+          
+            <div class="links-of-author motion-element">
+                
+                  <span class="links-of-author-item">
+                    <a href="https://github.com/ryanZiegler" target="_blank" title="GitHub">
+                      
+                        <i class="fa fa-fw fa-github"></i>GitHub</a>
+                  </span>
+                
+                  <span class="links-of-author-item">
+                    <a href="mailto:egoT@gmail.com" target="_blank" title="E-Mail">
+                      
+                        <i class="fa fa-fw fa-envelope"></i>E-Mail</a>
+                  </span>
+                
+            </div>
           
 
           
@@ -557,7 +638,7 @@
             
 
             
-              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#写在前面"><span class="nav-number">1.</span> <span class="nav-text">写在前面</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#基础"><span class="nav-number">2.</span> <span class="nav-text">基础</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#连接到mysql"><span class="nav-number">2.0.1.</span> <span class="nav-text">连接到mysql</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#了解mysql的简单指令"><span class="nav-number">2.0.2.</span> <span class="nav-text">了解mysql的简单指令</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#SQL语句常用命令"><span class="nav-number">2.0.3.</span> <span class="nav-text">SQL语句常用命令</span></a></li></ol></li></ol><li class="nav-item nav-level-2"><a class="nav-link" href="#进阶"><span class="nav-number">3.</span> <span class="nav-text">进阶</span></a></li></div>
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#写在前面"><span class="nav-number">1.</span> <span class="nav-text">写在前面</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#基础"><span class="nav-number">2.</span> <span class="nav-text">基础</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#了解mysql的简单指令"><span class="nav-number">2.0.1.</span> <span class="nav-text">了解mysql的简单指令</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#SQL语句常用命令"><span class="nav-number">2.0.2.</span> <span class="nav-text">SQL语句常用命令</span></a></li></ol></li></ol><li class="nav-item nav-level-2"><a class="nav-link" href="#进阶"><span class="nav-number">3.</span> <span class="nav-text">进阶</span></a></li></div>
             
 
           </div>
@@ -595,7 +676,7 @@
 
 
 
-  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Muse</a> v5.1.4</div>
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Mist</a> v5.1.4</div>
 
 
 
