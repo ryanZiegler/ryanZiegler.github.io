@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next mist use-motion" lang="zh-Hans">
+<head><meta name="generator" content="Hexo 3.8.0">
+  <meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform">
+<meta http-equiv="Cache-Control" content="no-siteapp">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css">
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css">
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="学习笔记,Webhooks,自动部署,git,">
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="背景公司从当初的SVN代码版本控制,FTP手动上传项目代码zip压缩包,到如今的git代码版本控制,jenkins一键打包部署环境,已经初步完成了手动到自动的大跃进.回过头来看看自己的项目,还处在本地仓库修改代码 -&amp;gt; 提交远程github仓库 -&amp;gt; 自己上服务器手动pull最新分支代码的原始阶段.不能忍 OK,接下来让我们开始我们的进化偷懒之旅,大家一起跟随我的心路历程一起进化. 目">
+<meta name="keywords" content="学习笔记,Webhooks,自动部署,git">
+<meta property="og:type" content="article">
+<meta property="og:title" content="都9012年了,你还在手动部署代码吗">
+<meta property="og:url" content="http://yoursite.com/2019/04/08/都9012年了-你还在手动部署代码吗/index.html">
+<meta property="og:site_name" content="Ego">
+<meta property="og:description" content="背景公司从当初的SVN代码版本控制,FTP手动上传项目代码zip压缩包,到如今的git代码版本控制,jenkins一键打包部署环境,已经初步完成了手动到自动的大跃进.回过头来看看自己的项目,还处在本地仓库修改代码 -&amp;gt; 提交远程github仓库 -&amp;gt; 自己上服务器手动pull最新分支代码的原始阶段.不能忍 OK,接下来让我们开始我们的进化偷懒之旅,大家一起跟随我的心路历程一起进化. 目">
+<meta property="og:locale" content="zh-Hans">
+<meta property="og:updated_time" content="2019-04-08T09:44:29.026Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="都9012年了,你还在手动部署代码吗">
+<meta name="twitter:description" content="背景公司从当初的SVN代码版本控制,FTP手动上传项目代码zip压缩包,到如今的git代码版本控制,jenkins一键打包部署环境,已经初步完成了手动到自动的大跃进.回过头来看看自己的项目,还处在本地仓库修改代码 -&amp;gt; 提交远程github仓库 -&amp;gt; 自己上服务器手动pull最新分支代码的原始阶段.不能忍 OK,接下来让我们开始我们的进化偷懒之旅,大家一起跟随我的心路历程一起进化. 目">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Mist',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="http://yoursite.com/2019/04/08/都9012年了-你还在手动部署代码吗/">
+
+
+
+
+
+  <title>都9012年了,你还在手动部署代码吗 | Ego</title>
+  
+
+
+
+
+
+  <script type="text/javascript">
+    var _hmt = _hmt || [];
+    (function() {
+      var hm = document.createElement("script");
+      hm.src = "https://hm.baidu.com/hm.js?a23546e481a878a6fe08dd6f52cd82d6";
+      var s = document.getElementsByTagName("script")[0];
+      s.parentNode.insertBefore(hm, s);
+    })();
+  </script>
+
+
+
+
+</head>
+
+<body itemscope="" itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope="" itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">Ego</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br>
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br>
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br>
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br>
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2019/04/08/都9012年了-你还在手动部署代码吗/">
+
+    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="ego">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Ego">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">都9012年了,你还在手动部署代码吗</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2019-04-08T09:01:08+08:00">
+                2019-04-08
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h4 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h4><p>公司从当初的SVN代码版本控制,FTP手动上传项目代码zip压缩包,到如今的git代码版本控制,jenkins一键打包部署环境,已经初步完成了手动到自动的大跃进.回过头来看看自己的项目,还处在本地仓库修改代码 -&gt; 提交远程github仓库 -&gt; 自己上服务器手动pull最新分支代码的原始阶段.<del>不能忍</del></p>
+<p>OK,接下来让我们开始我们的进化<del>偷懒</del>之旅,大家一起跟随我的心路历程一起进化.</p>
+<h4 id="目标"><a href="#目标" class="headerlink" title="目标"></a>目标</h4><p>当我们本地仓库修改完成push远程仓库之后, 服务器能够自动拉取最新分支代码,自动完成项目部署.</p>
+<h5 id="前置条件-废话"><a href="#前置条件-废话" class="headerlink" title="前置条件(废话)"></a>前置条件(<del>废话</del>)</h5><ol>
+<li>有个本地仓库能够连接到远程仓库,能够push代码</li>
+<li>服务器仓库能够从远程仓库pull代码</li>
+<li>远程仓库有webhooks功能</li>
+</ol>
+<a id="more"></a>
+<h4 id="行动"><a href="#行动" class="headerlink" title="行动"></a>行动</h4><p>工欲善其事必先利其器,开始行动前有必要理解一波webhooks钩子自动部署原理;</p>
+<h5 id="webhooks自动部署原理"><a href="#webhooks自动部署原理" class="headerlink" title="webhooks自动部署原理"></a>webhooks自动部署原理</h5><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">本地仓库 -&gt; (push提交代码) -&gt; 远程仓库(webhooks钩子) -&gt; (发送带有key的post请求) -&gt; 测试/生产服务器(执行部署脚本)</span><br></pre></td></tr></table></figure>
+<p>知悉了原理之后我们来看看我们需要准备些什么:</p>
+<ul>
+<li>带有webhooks的远程仓库(gitlab,github,gitee等等)</li>
+<li>能够接收post请求的服务和测试/生产服务器</li>
+<li>部署脚本(.sh)</li>
+</ul>
+<h5 id="远程仓库webhooks设置"><a href="#远程仓库webhooks设置" class="headerlink" title="远程仓库webhooks设置"></a>远程仓库webhooks设置</h5><p>远程仓库的webhooks设置你只需要找到具体位置点进去:</p>
+<ol>
+<li><p>URL: 设置post请求的地址(即服务器服务地址)</p>
+</li>
+<li><p>key: 这个key可以设置也可以不设置,建议设置,防止他人随意请求服务器接口然后自动疯狂拉代码部署,相当于一个验签</p>
+</li>
+</ol>
+<h5 id="部署脚本auto-build-sh"><a href="#部署脚本auto-build-sh" class="headerlink" title="部署脚本auto_build.sh"></a>部署脚本auto_build.sh</h5><p>部署脚本(.sh)就自由发挥,自己平时怎么手动部署的就咋写就完事了,创建文件<code>auto_build.sh</code>.Linux下创建目录使用<code>mkdir 目录名</code>,创建文件使用<code>touch 文件名</code>.</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">PROJECTNAME_PATH = '/usr/local/src/项目目录';</span><br><span class="line"></span><br><span class="line">echo "Starting deployment"</span><br><span class="line">cd $PROJECTNAME_PATH</span><br><span class="line">git checkout .</span><br><span class="line">git pull</span><br><span class="line">npm i</span><br><span class="line">gulp release</span><br><span class="line">pm2 start ecosystem.config.js</span><br><span class="line">echo "Finished"</span><br></pre></td></tr></table></figure>
+<p>执行脚本的时候注意一下用户权限的问题以及基本命令的全局安装.</p>
+<h5 id="编写服务deploy-js"><a href="#编写服务deploy-js" class="headerlink" title="编写服务deploy.js"></a>编写服务deploy.js</h5><p>接下来的重头戏就是构建起一个能够接收远程仓库post请求的服务,这同样也很简单.你可以借助插件<a href="https://github.com/rvagg/github-webhook-handler" target="_blank" rel="noopener">github-webhook-handler</a> 的帮助,快速建立起这样一个服务,创建文件<code>deploy.js</code>.</p>
+<p>ps: 这里的secret就是上面webhooks设置中的key</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">var</span> http = <span class="built_in">require</span>(<span class="string">'http'</span>)</span><br><span class="line"><span class="keyword">var</span> createHandler = <span class="built_in">require</span>(<span class="string">'github-webhook-handler'</span>)</span><br><span class="line"><span class="keyword">var</span> handler = createHandler(&#123; <span class="attr">path</span>: <span class="string">'/webhook'</span>, <span class="attr">secret</span>: <span class="string">'myhashsecret'</span> &#125;)</span><br><span class="line"></span><br><span class="line">http.createServer(<span class="function"><span class="keyword">function</span> (<span class="params">req, res</span>) </span>&#123;</span><br><span class="line">  handler(req, res, <span class="function"><span class="keyword">function</span> (<span class="params">err</span>) </span>&#123;</span><br><span class="line">    res.statusCode = <span class="number">404</span></span><br><span class="line">    res.end(<span class="string">'no such location'</span>)</span><br><span class="line">  &#125;)</span><br><span class="line">&#125;).listen(<span class="number">7777</span>)</span><br><span class="line"></span><br><span class="line">handler.on(<span class="string">'error'</span>, <span class="function"><span class="keyword">function</span> (<span class="params">err</span>) </span>&#123;</span><br><span class="line">  <span class="built_in">console</span>.error(<span class="string">'Error:'</span>, err.message)</span><br><span class="line">&#125;)</span><br><span class="line"></span><br><span class="line">handler.on(<span class="string">'push'</span>, <span class="function"><span class="keyword">function</span> (<span class="params">event</span>) </span>&#123;</span><br><span class="line">  <span class="built_in">console</span>.log(<span class="string">'Received a push event for %s to %s'</span>,</span><br><span class="line">    event.payload.repository.name,</span><br><span class="line">    event.payload.ref)</span><br><span class="line">&#125;)</span><br><span class="line"></span><br><span class="line">handler.on(<span class="string">'issues'</span>, <span class="function"><span class="keyword">function</span> (<span class="params">event</span>) </span>&#123;</span><br><span class="line">  <span class="built_in">console</span>.log(<span class="string">'Received an issue event for %s action=%s: #%d %s'</span>,</span><br><span class="line">    event.payload.repository.name,</span><br><span class="line">    event.payload.action,</span><br><span class="line">    event.payload.issue.number,</span><br><span class="line">    event.payload.issue.title)</span><br><span class="line">&#125;)</span><br></pre></td></tr></table></figure>
+<p>ps: 还可以设置当有人给自己仓库提issues时发邮件提醒自己23333333</p>
+<p>如果服务无法启动,报错类似<code>Error: Cannot find module &#39;github-webhook-handler&#39;</code>,可是依赖包明明已经全局安装过了.确认方法:</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">npm root -g							// 查看npm全局安装路径</span><br><span class="line">=&gt; /root/.nvm/versions/node/v9.10.1/lib/node_modules</span><br><span class="line"></span><br><span class="line">cd /root/.nvm/versions/node/v9.10.1/lib/node_modules</span><br><span class="line">ll 									// 查看目录文件确认依赖是否安装</span><br></pre></td></tr></table></figure>
+<p>确认安装后可以通过以下步骤解决:</p>
+<ol>
+<li>进入<code>deploy.js</code>所在目录</li>
+<li>执行以下命令</li>
+</ol>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">npm link github-webhook-handler</span><br></pre></td></tr></table></figure>
+<p>现在,你需要做的是将<code>auto_build.sh</code>和<code>deploy.js</code>结合起来.</p>
+<p>阅读上面代码,你会发现<code>handler</code>监听到<code>push</code>事件调用对应的函数,所以你要做的就是在函数中执行<code>auto_build.sh</code>命令,你需要在<code>deploy.js</code>添加以及更改如下代码</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 新增runCmd函数</span></span><br><span class="line">funciton runCmd(cmd, args, callback) &#123;</span><br><span class="line">    <span class="keyword">var</span> spawn = <span class="built_in">require</span>(<span class="string">'child_process'</span>).spawn;				<span class="comment">// node子进程</span></span><br><span class="line">    <span class="keyword">var</span> child = spawn(cmd, args);</span><br><span class="line">    <span class="keyword">var</span> response = <span class="string">''</span>;</span><br><span class="line">    </span><br><span class="line">    child.stdout.on(<span class="string">'data'</span>, buffer =&gt; response += buffer.toStirng());</span><br><span class="line">    child.stdout.on(<span class="string">'end'</span>, () =&gt; callback(response));</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 修改push监听事件 我这里auto_build.sh和deploy.js位于同一目录文件中</span></span><br><span class="line">handler.on(<span class="string">'push'</span>, <span class="function"><span class="keyword">function</span>(<span class="params">event</span>) </span>&#123;</span><br><span class="line">   runCmd(<span class="string">'sh'</span>, [<span class="string">'./auto_build.sh'</span>], <span class="function"><span class="keyword">function</span>(<span class="params">text</span>) </span>&#123; <span class="built_in">console</span>.log(text) &#125;); </span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure>
+<p>ps: 可以通过<code>console.log()</code>在相应的步骤输出相应提示,方便查错</p>
+<h5 id="运行服务deploy-js"><a href="#运行服务deploy-js" class="headerlink" title="运行服务deploy.js"></a>运行服务deploy.js</h5><p>我们希望deploy服务能够一直运行在服务器上,当远程仓库发送post请求提示我们有新代码push的时候能够正常执行部署脚本.这时我们需要以守护进程的方式来启动<code>deploy.js</code>服务,当服务意外崩溃时能够重启服务,彻底解放我们的双手.</p>
+<p>这里提供两种方法供大家选择,都可以通过<code>npm</code>安装:</p>
+<ol>
+<li><code>forever</code>就是保证进程退出时，应用会自动重启。</li>
+</ol>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">forever start deploy.js		   				  <span class="comment">// 启动服务进程</span></span><br><span class="line">forever list								  <span class="comment">// 列出所有进程</span></span><br><span class="line">forever logs id								  <span class="comment">// 查看进程输出日志</span></span><br><span class="line">forever stop id								  <span class="comment">// 停止服务进程</span></span><br><span class="line">forever restart id							  <span class="comment">// 重启服务进程</span></span><br><span class="line">forever -m <span class="number">5</span> deploy.js						  <span class="comment">// 最多重启次数为5</span></span><br></pre></td></tr></table></figure>
+<ol start="2">
+<li><code>pm2</code>功能强大，除了重启进程以外，还能实时收集日志和监控。</li>
+</ol>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">pm2 start deploy.js		   				  <span class="comment">// 启动服务进程</span></span><br><span class="line">pm2 list								  <span class="comment">// 列出所有进程</span></span><br><span class="line">pm2 logs id								  <span class="comment">// 查看进程输出日志</span></span><br><span class="line">pm2 stop id								  <span class="comment">// 停止服务进程</span></span><br><span class="line">pm2 restart id							  <span class="comment">// 重启服务进程</span></span><br><span class="line">pm2 <span class="keyword">delete</span> id							  <span class="comment">// 删除服务进程</span></span><br></pre></td></tr></table></figure>
+<h5 id="Nginx反向代理"><a href="#Nginx反向代理" class="headerlink" title="Nginx反向代理"></a>Nginx反向代理</h5><p>因为我的服务器在腾讯云上面,7777端口并未放开,所以通过一个Nginx反向代理到服务器安全组开放端口.</p>
+<p>在远程仓库发送post测试请求前一定要确认</p>
+<p><strong>自己服务器安全组端口已放开!!!</strong></p>
+<p><strong>自己服务器安全组端口已放开!!!</strong></p>
+<p><strong>自己服务器安全组端口已放开!!!</strong></p>
+<p>重要的事情说三遍! 下面是我nginx配置</p>
+<figure class="highlight nginx"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="section">server</span> &#123;</span><br><span class="line">	<span class="attribute">listen</span> <span class="number">8080</span>;</span><br><span class="line">    <span class="attribute">server_name</span>	localhost;</span><br><span class="line">    </span><br><span class="line">    <span class="attribute">location</span> /webhook &#123;</span><br><span class="line">        <span class="attribute">proxy_pass</span> http://127.0.0.1:7777;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>ps: Linux下重启nginx,进入nginx的sbin目录运行命令<code>./nginx -s reload</code></p>
+<h5 id="Bug"><a href="#Bug" class="headerlink" title="Bug"></a>Bug</h5><p>Nginx启动 ! deploy服务启动 ! 远程仓库webhook设置完毕 ! 点击测试按钮 !</p>
+<p>然后……</p>
+<p><strong>报错!!!</strong>   (强颜欢笑and笑容逐渐消失.jpg</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line">  <span class="string">"error"</span>: <span class="string">"No X-Hub-Signature found on request"</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>看了半天……才想起来我的项目代码远程仓库是码云gitee.com,因为github私人private仓库2019年2月之前都是需要付费的,所以涉及私人的项目代码我都选择了码云作为远程仓库,然而我的插件是<code>github-webhook-handler</code>!!!!能通才有鬼 TAT</p>
+<p>没关系,小问题.都到这一步了,男人怎么能说不行!</p>
+<p>先去github上搜下有没有对应gitee的webhook插件,要是没有就fork<code>github-webhook-handler</code>下来自己改下改成适配gitee码云的.果然让我搜到了<code>gitee-webhook-middleware</code>,然后<code>deploy.js</code>改一改</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">var</span> createHandler = <span class="built_in">require</span>(<span class="string">'gitee-webhook-middleware'</span>);</span><br><span class="line"><span class="keyword">var</span> handler = createHandler(&#123; <span class="attr">path</span>: <span class="string">'/webhook'</span>, <span class="attr">token</span>: <span class="string">'你的key'</span> &#125;);</span><br></pre></td></tr></table></figure>
+<p>重启服务,点击测试 !</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line">  &quot;ok&quot;: true</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>完美 ! </p>
+<p>上服务器一看项目代码还是旧的,妈耶还有坑…后来发现gitee的post请求事件是<code>Push Hook</code></p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// handler.on('push', function() &#123;&#125;);</span></span><br><span class="line">handler.on(<span class="string">'Push Hook'</span>, <span class="function"><span class="keyword">function</span>(<span class="params"></span>) </span>&#123;&#125;);</span><br></pre></td></tr></table></figure>
+<p>至此,重新测试,项目代码更新成功 !</p>
+<h4 id="结果"><a href="#结果" class="headerlink" title="结果"></a>结果</h4><p><del>偷懒成功! 偷懒果然是工程师第一生产力</del></p>
+<p>现在每当我本地仓库push代码到远程仓库,服务器就会拉取最新版本代码自动部署.</p>
+<p>这只是我一次简单尝试,我们完全可以扩展自动化测试,自动化部署于一体,完成多人协作开发时的CI/CD,大大减少人力成本,减少人为错误的发生,提高大家的工作效率.</p>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/学习笔记/" rel="tag"># 学习笔记</a>
+          
+            <a href="/tags/Webhooks/" rel="tag"># Webhooks</a>
+          
+            <a href="/tags/自动部署/" rel="tag"># 自动部署</a>
+          
+            <a href="/tags/git/" rel="tag"># git</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2019/03/25/记一道题/" rel="next" title="记一道题">
+                <i class="fa fa-chevron-left"></i> 记一道题
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+            
+              <img class="site-author-image" itemprop="image" src="/images/avatar.jpg" alt="ego">
+            
+              <p class="site-author-name" itemprop="name">ego</p>
+              <p class="site-description motion-element" itemprop="description">长恨人心不如水，等闲平地起波澜</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/">
+              
+                  <span class="site-state-item-count">6</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">2</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">7</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+            <div class="links-of-author motion-element">
+                
+                  <span class="links-of-author-item">
+                    <a href="https://github.com/ryanZiegler" target="_blank" title="GitHub">
+                      
+                        <i class="fa fa-fw fa-github"></i>GitHub</a>
+                  </span>
+                
+                  <span class="links-of-author-item">
+                    <a href="mailto:egoT@gmail.com" target="_blank" title="E-Mail">
+                      
+                        <i class="fa fa-fw fa-envelope"></i>E-Mail</a>
+                  </span>
+                
+            </div>
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-4"><a class="nav-link" href="#背景"><span class="nav-number">1.</span> <span class="nav-text">背景</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#目标"><span class="nav-number">2.</span> <span class="nav-text">目标</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#前置条件-废话"><span class="nav-number">2.1.</span> <span class="nav-text">前置条件(废话)</span></a></li></ol></li><li class="nav-item nav-level-4"><a class="nav-link" href="#行动"><span class="nav-number">3.</span> <span class="nav-text">行动</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#webhooks自动部署原理"><span class="nav-number">3.1.</span> <span class="nav-text">webhooks自动部署原理</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#远程仓库webhooks设置"><span class="nav-number">3.2.</span> <span class="nav-text">远程仓库webhooks设置</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#部署脚本auto-build-sh"><span class="nav-number">3.3.</span> <span class="nav-text">部署脚本auto_build.sh</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#编写服务deploy-js"><span class="nav-number">3.4.</span> <span class="nav-text">编写服务deploy.js</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#运行服务deploy-js"><span class="nav-number">3.5.</span> <span class="nav-text">运行服务deploy.js</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#Nginx反向代理"><span class="nav-number">3.6.</span> <span class="nav-text">Nginx反向代理</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#Bug"><span class="nav-number">3.7.</span> <span class="nav-text">Bug</span></a></li></ol></li><li class="nav-item nav-level-4"><a class="nav-link" href="#结果"><span class="nav-number">4.</span> <span class="nav-text">结果</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2019</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">ego</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Mist</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+  
+  
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/three/three.min.js"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/three/canvas_sphere.min.js"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+<script src="/live2dw/lib/L2Dwidget.min.js?0c58a1486de42ac6cc1c59c7d98ae887"></script><script>L2Dwidget.init({"log":false,"pluginJsPath":"lib/","pluginModelPath":"assets/","pluginRootPath":"live2dw/","tagMode":false});</script></body>
+</html>
