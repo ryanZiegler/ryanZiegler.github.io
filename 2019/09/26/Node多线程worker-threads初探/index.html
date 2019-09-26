@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next mist use-motion" lang="zh-Hans">
+<head><meta name="generator" content="Hexo 3.8.0">
+  <meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform">
+<meta http-equiv="Cache-Control" content="no-siteapp">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css">
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css">
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css">
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="最近在面试求职的时候有被问到 Node 有没有办法实现多线程,我一拍脑袋,害,这个我会: “利用 cluster 模式通过 fork() 实例化多个 node 服务实例, 比如一个8核服务器,就可以启动8个独立实例,相互之间并不影响,十分稳定.最典型的工具就是 pm2.” “恩恩,你说的是 cluster 多进程模式,有没有多线程方式呢?” “啊…这个…那就通过 child_process 去 f">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Node多线程worker_threads初探">
+<meta property="og:url" content="http://yoursite.com/2019/09/26/Node多线程worker-threads初探/index.html">
+<meta property="og:site_name" content="Ego">
+<meta property="og:description" content="最近在面试求职的时候有被问到 Node 有没有办法实现多线程,我一拍脑袋,害,这个我会: “利用 cluster 模式通过 fork() 实例化多个 node 服务实例, 比如一个8核服务器,就可以启动8个独立实例,相互之间并不影响,十分稳定.最典型的工具就是 pm2.” “恩恩,你说的是 cluster 多进程模式,有没有多线程方式呢?” “啊…这个…那就通过 child_process 去 f">
+<meta property="og:locale" content="zh-Hans">
+<meta property="og:updated_time" content="2019-09-26T12:32:04.060Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Node多线程worker_threads初探">
+<meta name="twitter:description" content="最近在面试求职的时候有被问到 Node 有没有办法实现多线程,我一拍脑袋,害,这个我会: “利用 cluster 模式通过 fork() 实例化多个 node 服务实例, 比如一个8核服务器,就可以启动8个独立实例,相互之间并不影响,十分稳定.最典型的工具就是 pm2.” “恩恩,你说的是 cluster 多进程模式,有没有多线程方式呢?” “啊…这个…那就通过 child_process 去 f">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Mist',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="http://yoursite.com/2019/09/26/Node多线程worker-threads初探/">
+
+
+
+
+
+  <title>Node多线程worker_threads初探 | Ego</title>
+  
+
+
+
+
+
+  <script type="text/javascript">
+    var _hmt = _hmt || [];
+    (function() {
+      var hm = document.createElement("script");
+      hm.src = "https://hm.baidu.com/hm.js?a23546e481a878a6fe08dd6f52cd82d6";
+      var s = document.getElementsByTagName("script")[0];
+      s.parentNode.insertBefore(hm, s);
+    })();
+  </script>
+
+
+
+
+</head>
+
+<body itemscope="" itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope="" itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/" class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">Ego</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br>
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br>
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br>
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br>
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2019/09/26/Node多线程worker-threads初探/">
+
+    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="ego">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Ego">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">Node多线程worker_threads初探</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2019-09-26T20:31:01+08:00">
+                2019-09-26
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <p>最近在面试求职的时候有被问到 Node 有没有办法实现多线程,我一拍脑袋,害,这个我会:</p>
+<p>“利用 cluster 模式通过 fork() 实例化多个 node 服务实例, 比如一个8核服务器,就可以启动8个独立实例,相互之间并不影响,十分稳定.最典型的工具就是 pm2.”</p>
+<p>“恩恩,你说的是 cluster 多进程模式,有没有多线程方式呢?”</p>
+<p>“啊…这个…那就通过 child_process 去 fork/spawn 一个子进程…”</p>
+<p>“这也是调起了一个子进程,并不是真正的多线程,有关注过 Node 的一些新特性/api 吗?”</p>
+<p>“饿…这个(此时的我是当真不知道 worker_threads….”</p>
+<p>然后结局很明显,在欢声笑语中打出GG…</p>
+<p>不甘心的我去<a href="http://nodejs.cn/api/worker_threads.html" target="_blank" rel="noopener">Node中文文档</a>查阅了相关资料,果不其然,我还是太年轻了:)</p>
+<a id="more"></a>
+<p>害! 为啥 Node中文文档居然英文API,于是我学习的同时顺便翻译了一哈.有兴趣学习或者了解 worker_threads 模块的同学可以点击<a href="[https://iiamego.com/2019/09/19/%E8%AF%91-worker-threads-%E5%B7%A5%E4%BD%9C%E7%BA%BF%E7%A8%8B/](https://iiamego.com/2019/09/19/译-worker-threads-工作线程/">这里</a>)查阅<del>(谷歌翻译+作者人肉翻译,如有错谬,还望海涵)</del></p>
+<p>ps: Node不是单线程的么? 实际上并不是, Node 单线程是指 v8 引擎执行 js 时是单线程的,就好像浏览器一个Tab进程中,就有GUI渲染线程, JS引擎线程,事件触发线程,定时器触发线程,异步请求http线程. <a href="https://segmentfault.com/a/1190000019111942#articleHeader0" target="_blank" rel="noopener">Node.js 异步原理</a>其实是通过 libuv 的线程池完成异步调用的;当你启动一个Node服务时,打开任务管理器,你会发现 Node 任务的线程数为7(主线程,编译/优化线程,分析器线程,垃圾回收线程等)</p>
+<h4 id="worker-threads模块内的对象和类"><a href="#worker-threads模块内的对象和类" class="headerlink" title="worker_threads模块内的对象和类"></a>worker_threads模块内的对象和类</h4><ul>
+<li>isMainThread: true表示为主线程, false表示为 worker 线程</li>
+<li>parentPort: 主线程为null, worker 线程表示为父进程的 MessagePort 类型对象</li>
+<li>SHARE_ENV: 指示主线程和 worker线程应共享的环境变量</li>
+<li>threadId: 当前线程的整数标识符,唯一</li>
+<li>workerData: 创建 worker 线程的初始化数据</li>
+<li>MessageChannel 类: 类的实例表示异步双向通信通道,即 MessagePort 实例</li>
+<li>MessagePort 类: 类的实例表示异步双向通信通道的一端</li>
+<li>Worker 类: 表示一个独立的 JavaScript 执行线程</li>
+</ul>
+<h4 id="如何创建一个子线程"><a href="#如何创建一个子线程" class="headerlink" title="如何创建一个子线程"></a>如何创建一个子线程</h4><p>首先确认自己 Node 版本环境支持 worker_threads 模块.如不支持,可以通过nvm下个最新的 Node.</p>
+<p>笔者在 Node.js 开发版本v12.6.0上测试该模块. 首先引入模块:</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// main.js</span></span><br><span class="line"><span class="keyword">const</span> &#123; Worker, isMainThread, parentPort, workerData, MessageChannel &#125; = <span class="built_in">require</span>(<span class="string">'worker_threads'</span>);</span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> (isMainThread) &#123;</span><br><span class="line">    <span class="built_in">console</span>.log(<span class="string">'我是主线程'</span>, isMainThread);</span><br><span class="line">    <span class="keyword">const</span> worker = <span class="keyword">new</span> Worker(__filename);</span><br><span class="line">&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">    <span class="built_in">console</span>.log(<span class="string">'我不是主线程'</span>, isMainThread);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">=&gt; 我是主线程 <span class="literal">true</span></span><br><span class="line">=&gt; 我不是主线程 <span class="literal">false</span></span><br></pre></td></tr></table></figure>
+<p>例子通过 new Worker 生成子线程重新执行了 main.js ,执行完毕, worker子线程自动销毁.</p>
+<p><code>__filename</code> 你可以写成你所要执行的具体 <code>worker.js</code> 所在的路径.</p>
+<p>除了通过 new Worker 去加载执行 js 文件,有没有办法直接执行 js 代码呢, 如下所示:</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">let</span> code = <span class="string">`</span></span><br><span class="line"><span class="string">for(let i = 0;i &lt; 5;i++) &#123;</span></span><br><span class="line"><span class="string">    console.log('worker线程执行中:', i);</span></span><br><span class="line"><span class="string">&#125;</span></span><br><span class="line"><span class="string">`</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">let</span> worker = <span class="keyword">new</span> Worker(code, &#123; <span class="attr">eval</span>: <span class="literal">true</span> &#125;);</span><br><span class="line"><span class="built_in">console</span>.log(<span class="string">'主线程执行完毕'</span>);</span><br><span class="line"></span><br><span class="line">=&gt; 主线程执行完毕</span><br><span class="line">=&gt; worker线程执行中: <span class="number">0</span></span><br><span class="line">=&gt; worker线程执行中: <span class="number">1</span></span><br><span class="line">=&gt; worker线程执行中: <span class="number">2</span></span><br><span class="line">=&gt; worker线程执行中: <span class="number">3</span></span><br><span class="line">=&gt; worker线程执行中: <span class="number">4</span></span><br></pre></td></tr></table></figure>
+<blockquote>
+<p>如果通过 port 设置了 port.on 监听事件, 除非手动 terminate 终结, 否则线程不会自动中断(或者和我一样使用 port.once 即监听一次) </p>
+</blockquote>
+<h4 id="线程初始化数据"><a href="#线程初始化数据" class="headerlink" title="线程初始化数据"></a>线程初始化数据</h4><p>即通过<code>workerData</code>完成完成线程数据初始化</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">const</span> data = &#123;</span><br><span class="line">    name: <span class="string">'ego同学'</span>,</span><br><span class="line">    age: <span class="number">23</span>,</span><br><span class="line">    sex: <span class="string">'male'</span>,</span><br><span class="line">    addr: <span class="string">'深圳南山'</span>,</span><br><span class="line">    arr: [&#123; <span class="attr">skill</span>: <span class="string">'coding'</span>&#125;, &#123; <span class="attr">hobby</span>: <span class="string">'basketball'</span> &#125;]</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> (isMainThread) &#123;</span><br><span class="line">    <span class="keyword">const</span> worker = <span class="keyword">new</span> Worker(__filename, &#123; <span class="attr">workerData</span>: data &#125;);</span><br><span class="line">&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">    workerData.age = <span class="number">16</span>;</span><br><span class="line">    workerData.arr[<span class="number">0</span>].skill = <span class="string">'sleep'</span>;</span><br><span class="line">    <span class="built_in">console</span>.log(data);</span><br><span class="line">    <span class="built_in">console</span>.log(workerData);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">=&gt;</span><br><span class="line">&#123;</span><br><span class="line">  name: <span class="string">'ego同学'</span>,</span><br><span class="line">  age: <span class="number">23</span>,</span><br><span class="line">  sex: <span class="string">'male'</span>,</span><br><span class="line">  addr: <span class="string">'深圳南山'</span>,</span><br><span class="line">  arr: [ &#123; <span class="attr">skill</span>: <span class="string">'coding'</span> &#125;, &#123; <span class="attr">hobby</span>: <span class="string">'basketball'</span> &#125; ]</span><br><span class="line">&#125;</span><br><span class="line">&#123;</span><br><span class="line">  name: <span class="string">'ego同学'</span>,</span><br><span class="line">  age: <span class="number">16</span>,</span><br><span class="line">  sex: <span class="string">'male'</span>,</span><br><span class="line">  addr: <span class="string">'深圳南山'</span>,</span><br><span class="line">  arr: [ &#123; <span class="attr">skill</span>: <span class="string">'sleep'</span> &#125;, &#123; <span class="attr">hobby</span>: <span class="string">'basketball'</span> &#125; ]</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h4 id="线程间的通信"><a href="#线程间的通信" class="headerlink" title="线程间的通信"></a>线程间的通信</h4><h5 id="父子线程通信"><a href="#父子线程通信" class="headerlink" title="父子线程通信"></a>父子线程通信</h5><figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">if</span> (isMainThread) &#123;</span><br><span class="line">    <span class="keyword">const</span> worker = <span class="keyword">new</span> Worker(__filename);</span><br><span class="line"></span><br><span class="line">    worker.postMessage(&#123;<span class="attr">name</span>: <span class="string">'ego同学'</span>&#125;);</span><br><span class="line">    worker.once(<span class="string">'message'</span>, (message) =&gt; &#123;</span><br><span class="line">        <span class="built_in">console</span>.log(<span class="string">'主线程接收信息:'</span>, message);</span><br><span class="line">    &#125;);</span><br><span class="line">&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">    parentPort.once(<span class="string">'message'</span>, (obj) =&gt; &#123;</span><br><span class="line">        <span class="built_in">console</span>.log(<span class="string">'子线程接收信息:'</span>, obj);</span><br><span class="line">        parentPort.postMessage(obj.name);</span><br><span class="line">    &#125;)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">=&gt; 子线程接收信息: &#123; <span class="attr">name</span>: <span class="string">'ego同学'</span> &#125;</span><br><span class="line">=&gt; 主线程接收信息: ego同学</span><br></pre></td></tr></table></figure>
+<p><code>parentPort</code>是生成 worker 线程时自动创建的<code>MessagePort</code>实例,用于与父进程进行通信.</p>
+<h5 id="子线程间通信"><a href="#子线程间通信" class="headerlink" title="子线程间通信"></a>子线程间通信</h5><figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//main.js</span></span><br><span class="line"><span class="keyword">const</span> path = <span class="built_in">require</span>(<span class="string">'path'</span>);</span><br><span class="line"></span><br><span class="line"><span class="keyword">const</span> &#123; port1, port2 &#125; = <span class="keyword">new</span> MessageChannel();</span><br><span class="line"><span class="keyword">if</span> (isMainThread) &#123;</span><br><span class="line">    <span class="keyword">const</span> worker1 = <span class="keyword">new</span> Worker(__filename);</span><br><span class="line">    <span class="keyword">const</span> worker2 = <span class="keyword">new</span> Worker(path.join(__dirname, <span class="string">'worker.js'</span>));</span><br><span class="line"></span><br><span class="line">    worker1.postMessage(&#123; port1 &#125;, [ port1 ]);</span><br><span class="line">    worker2.postMessage(&#123; port2 &#125;, [ port2 ]);</span><br><span class="line">&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">	parentPort.once(<span class="string">'message'</span>, (&#123; port1 &#125;) =&gt; &#123;</span><br><span class="line">        <span class="built_in">console</span>.log(<span class="string">'子线程1收到port1'</span>, port1);</span><br><span class="line">        port1.once(<span class="string">'message'</span>, (msg) =&gt; &#123;</span><br><span class="line">            <span class="built_in">console</span>.log(<span class="string">'子线程1收到'</span>, msg);</span><br><span class="line">        &#125;)</span><br><span class="line"></span><br><span class="line">        port1.postMessage(<span class="string">'port1 向 port2 发消息啦'</span>);</span><br><span class="line">    &#125;)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// worker.js</span></span><br><span class="line"><span class="keyword">const</span> &#123; parentPort &#125; = <span class="built_in">require</span>(<span class="string">'worker_threads'</span>);</span><br><span class="line"></span><br><span class="line">parentPort.once(<span class="string">'message'</span>, (&#123; port2 &#125;) =&gt; &#123;</span><br><span class="line">    <span class="built_in">console</span>.log(<span class="string">'子线程2收到port2'</span>);</span><br><span class="line"></span><br><span class="line">    port2.once(<span class="string">'message'</span>, (msg) =&gt; &#123;</span><br><span class="line">        <span class="built_in">console</span>.log(<span class="string">'子线程2收到'</span>, msg);</span><br><span class="line">    &#125;)</span><br><span class="line"></span><br><span class="line">    port2.postMessage(<span class="string">'这里是port2, over!'</span>);</span><br><span class="line">&#125;)</span><br><span class="line"></span><br><span class="line">=&gt;</span><br><span class="line">子线程<span class="number">1</span>收到port1</span><br><span class="line">子线程<span class="number">2</span>收到port2</span><br><span class="line">子线程<span class="number">1</span>收到 这里是port2, over!</span><br><span class="line">子线程<span class="number">2</span>收到 port1 向 port2 发消息啦</span><br></pre></td></tr></table></figure>
+<p>简单来说就是父线程将<code>MessageChannel</code>类生成的<code>MessagePort</code>对象实例分别发送到子线程中,两个子线程即可通过 <code>port1</code>,<code>port2</code>进行通信.</p>
+<p>菜徐坤疑问:</p>
+<p>worker线程实例可不可以通过<code>workerData</code>传递到另一个worker线程里直接使用呢?试一下:</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// main.js</span></span><br><span class="line"><span class="keyword">const</span> worker1 = <span class="keyword">new</span> Worker(__filename);</span><br><span class="line"><span class="keyword">const</span> worker2 = <span class="keyword">new</span> Worker(path.join(__dirname, <span class="string">'worker.js'</span>), &#123; <span class="attr">workerData</span>: worker1 &#125;);</span><br><span class="line"></span><br><span class="line"><span class="comment">// worker.js</span></span><br><span class="line"><span class="keyword">const</span> &#123; workerData &#125; = <span class="built_in">require</span>(<span class="string">'worker_threads'</span>);</span><br><span class="line"><span class="built_in">console</span>.log(workerData);</span><br><span class="line"></span><br><span class="line">=&gt;</span><br><span class="line">internal/worker.js:<span class="number">144</span></span><br><span class="line">    <span class="keyword">this</span>[kPort].postMessage(&#123;</span><br><span class="line">                ^</span><br><span class="line"></span><br><span class="line">DOMException [DataCloneError]: <span class="function">(<span class="params">name</span>) =&gt;</span> &#123;</span><br><span class="line">    <span class="keyword">if</span> (name === eventName &amp;&amp; eventEmitter.listenerCount(eventName) === <span class="number">0</span>) &#123;</span><br><span class="line">      port.ref();</span><br><span class="line"> ...&lt;omitted&gt;... &#125; could not be cloned.</span><br></pre></td></tr></table></figure>
+<p>抛出数据克隆错误 !</p>
+<p>OK,我们来看看 <a href="https://github.com/nodejs/node/blob/master/lib/internal/worker.js" target="_blank" rel="noopener">Node worker_thread模块源码</a> 如下:</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// node/lib/internal/worker.js</span></span><br><span class="line"></span><br><span class="line">...</span><br><span class="line"><span class="keyword">const</span> url = options.eval ? <span class="literal">null</span> : pathToFileURL(filename);</span><br><span class="line"><span class="comment">// Set up the C++ handle for the worker, as well as some internal wiring.</span></span><br><span class="line"><span class="comment">// 为工作程序设置C ++句柄以及一些内部连线。</span></span><br><span class="line"><span class="keyword">this</span>[kHandle] = <span class="keyword">new</span> WorkerImpl(url, options.execArgv);</span><br><span class="line"></span><br><span class="line">...</span><br><span class="line"></span><br><span class="line"><span class="keyword">this</span>[kPort] = <span class="keyword">this</span>[kHandle].messagePort;</span><br><span class="line"><span class="keyword">this</span>[kPort].on(<span class="string">'message'</span>, (data) =&gt; <span class="keyword">this</span>[kOnMessage](data));</span><br><span class="line"></span><br><span class="line">...</span><br><span class="line"></span><br><span class="line"><span class="keyword">const</span> &#123; port1, port2 &#125; = <span class="keyword">new</span> MessageChannel();</span><br><span class="line"><span class="keyword">this</span>[kPublicPort] = port1;</span><br><span class="line"><span class="keyword">this</span>[kPublicPort].on(<span class="string">'message'</span>, (message) =&gt; <span class="keyword">this</span>.emit(<span class="string">'message'</span>, message));</span><br><span class="line">setupPortReferencing(<span class="keyword">this</span>[kPublicPort], <span class="keyword">this</span>, <span class="string">'message'</span>);</span><br><span class="line"><span class="keyword">this</span>[kPort].postMessage(&#123;</span><br><span class="line">	type: messageTypes.LOAD_SCRIPT,</span><br><span class="line">    filename,</span><br><span class="line">    doEval: !!options.eval,</span><br><span class="line">    cwdCounter: cwdCounter || workerIo.sharedCwdCounter,</span><br><span class="line">    workerData: options.workerData,</span><br><span class="line">    publicPort: port2,</span><br><span class="line">    manifestSrc: getOptionValue(<span class="string">'--experimental-policy'</span>) ?</span><br><span class="line">      <span class="built_in">require</span>(<span class="string">'internal/process/policy'</span>).src :</span><br><span class="line">      <span class="literal">null</span>,</span><br><span class="line">    hasStdin: !!options.stdin</span><br><span class="line">&#125;, [port2]);</span><br><span class="line"><span class="comment">// Actually start the new thread now that everything is in place.</span></span><br><span class="line"><span class="comment">// 现在，一切就绪，实际上开始新线程。</span></span><br><span class="line"><span class="keyword">this</span>[kHandle].startThread();</span><br></pre></td></tr></table></figure>
+<p><code>workerData</code>是通过 <code>port.postMessagePort(value[, transferList])</code> 克隆副本传输给目标线程,即<code>workerData</code>通过<a href="https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Structured_clone_algorithm" target="_blank" rel="noopener">结构化克隆算法</a>进行复制:</p>
+<blockquote>
+<p>It builds up a clone by recursing through the input object while maintaining a map of previously visited references in order to avoid infinitely traversing cycles.</p>
+<p>通过递归遍历输入对象而建立一个副本，同时保持先前访问的引用的映射，以避免无限遍历循环。</p>
+</blockquote>
+<p>该算法不复制函数、错误、属性描述符或原型链,可以包含循环引用和类型化数组.</p>
+<h4 id="线程共享内存"><a href="#线程共享内存" class="headerlink" title="线程共享内存"></a>线程共享内存</h4><p><code>port.postMessage(value[, transferList])</code></p>
+<p><code>transferList</code>可以是<code>ArrayBuffer</code>和<code>MessagePort</code>对象的列表, 传递<code>ArrayBuffer</code>后,访问权限被修改,归属于消息接收方,它们将不再可用于频道的发送方 !!!</p>
+<p>线程间通过 clone 第一个参数来互相传递消息, 那如果我不想到处 clone 到处传递数据呢, 有办法解决吗? 答案是有的.</p>
+<p><code>cluster</code> 和 <code>child_process</code> 时通常使用 <code>SharedArrayBuffer</code> 来实现需要多进程共享的内存, 同样的 <code>value</code>可以包含<code>SharedArrayBuffer</code>实例,从而可以在任一线程访问这些实例 !</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">const</span> &#123; Worker, isMainThread, parentPort, MessageChannel, threadId &#125; = <span class="built_in">require</span>(<span class="string">'worker_threads'</span>);</span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> (isMainThread) &#123;</span><br><span class="line">    <span class="keyword">const</span> worker1 = <span class="keyword">new</span> Worker(__filename);</span><br><span class="line">    <span class="keyword">const</span> worker2 = <span class="keyword">new</span> Worker(__filename);</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">const</span> &#123; port1, port2 &#125; = <span class="keyword">new</span> MessageChannel();</span><br><span class="line">    <span class="keyword">const</span> sharedUint8Array = <span class="keyword">new</span> <span class="built_in">Uint8Array</span>(<span class="keyword">new</span> SharedArrayBuffer(<span class="number">4</span>));</span><br><span class="line">	<span class="comment">// 输出一下sharedUint8Array</span></span><br><span class="line">    <span class="built_in">console</span>.log(sharedUint8Array);</span><br><span class="line">    worker1.postMessage(&#123; <span class="attr">uPort</span>: port1, <span class="attr">data</span>: sharedUint8Array &#125;, [ port1 ]);</span><br><span class="line">    worker2.postMessage(&#123; <span class="attr">uPort</span>: port2, <span class="attr">data</span>: sharedUint8Array &#125;, [ port2 ]);</span><br><span class="line"></span><br><span class="line">    worker2.once(<span class="string">'message'</span>, (message) =&gt; &#123;</span><br><span class="line">        <span class="built_in">console</span>.log(<span class="string">`<span class="subst">$&#123;message&#125;</span>, 查看共享内存:<span class="subst">$&#123;sharedUint8Array&#125;</span>`</span>);</span><br><span class="line">    &#125;);</span><br><span class="line">&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">    parentPort.once(<span class="string">'message'</span>, (&#123; uPort, data &#125;) =&gt; &#123;</span><br><span class="line">        uPort.postMessage(<span class="string">`我是<span class="subst">$&#123;threadId&#125;</span>号线程`</span>);</span><br><span class="line">        uPort.on(<span class="string">'message'</span>, (msg) =&gt; &#123;</span><br><span class="line">            <span class="built_in">console</span>.log(<span class="string">`<span class="subst">$&#123;threadId&#125;</span>号收到:<span class="subst">$&#123;msg&#125;</span>`</span>);</span><br><span class="line">            <span class="keyword">if</span> (threadId === <span class="number">2</span>) &#123;</span><br><span class="line">                data[<span class="number">1</span>] = <span class="number">2</span>;</span><br><span class="line">                parentPort.postMessage(<span class="string">'2号线程修改了共享内存!!!'</span>);</span><br><span class="line">            &#125;</span><br><span class="line">            <span class="built_in">console</span>.log(<span class="string">`<span class="subst">$&#123;threadId&#125;</span>号查看共享内存:<span class="subst">$&#123;data&#125;</span>`</span>);</span><br><span class="line">        &#125;)</span><br><span class="line">    &#125;)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">=&gt;</span><br><span class="line"><span class="built_in">Uint8Array</span> [ <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span> ]</span><br><span class="line"><span class="number">2</span>号收到:我是<span class="number">1</span>号线程</span><br><span class="line"><span class="number">2</span>号线程修改了共享内存!!!, 查看共享内存:<span class="number">0</span>,<span class="number">2</span>,<span class="number">0</span>,<span class="number">0</span></span><br><span class="line"><span class="number">1</span>号收到:我是<span class="number">2</span>号线程</span><br><span class="line"><span class="number">2</span>号查看共享内存:<span class="number">0</span>,<span class="number">2</span>,<span class="number">0</span>,<span class="number">0</span></span><br><span class="line"><span class="number">1</span>号查看共享内存:<span class="number">0</span>,<span class="number">2</span>,<span class="number">0</span>,<span class="number">0</span></span><br></pre></td></tr></table></figure>
+<p>通过共享内存,  我们在一个线程中修改它, 意味所有线程中中进行了修改, 意味着数据的传递修改无需多次序列化clone, 是不是方便很多呢.</p>
+<p>如果不满足共享一个 Buffer 数组, 通常数据都是以对象的形式来存储传递的, 我们可以<a href="https://stackoverflow.com/questions/51053222/nodejs-worker-threads-shared-object-store" target="_blank" rel="noopener">创建类似的结构</a>来达到我们的目的.</p>
+<h4 id="创建线程池"><a href="#创建线程池" class="headerlink" title="创建线程池"></a>创建线程池</h4><p>worker 工作线程一般有两种使用方法:</p>
+<ul>
+<li>实行创建任务线程, 任务执行完毕后销毁释放</li>
+<li>预先创建线程池, 通过调度规划执行任务</li>
+</ul>
+<p>官方推荐线程池的使用方法, 毕竟一次次的创建销毁 worker 需要占用不小的开销, 我们可以根据实际业务情况来选择自己的使用方式.</p>
+<p>下面我们来实现一个简单的 worker_thread 线程池:</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// main.js</span></span><br><span class="line"><span class="keyword">const</span> path = <span class="built_in">require</span>(<span class="string">'path'</span>);</span><br><span class="line"><span class="keyword">const</span> &#123; Worker &#125; = <span class="built_in">require</span>(<span class="string">'worker_threads'</span>);</span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">WorkerPool</span> </span>&#123;</span><br><span class="line">    _workers = [];                    <span class="comment">// 线程引用数组</span></span><br><span class="line">    _activeWorkers = [];              <span class="comment">// 激活的线程数组</span></span><br><span class="line">    _queue = [];                      <span class="comment">// 任务队列</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">constructor</span>(workerPath, numOfThreads) &#123;</span><br><span class="line">        <span class="keyword">this</span>.workerPath = workerPath;</span><br><span class="line">        <span class="keyword">this</span>.numOfThreads = numOfThreads;</span><br><span class="line">        <span class="keyword">this</span>.init();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 初始化多线程</span></span><br><span class="line">    init() &#123;</span><br><span class="line">        <span class="keyword">if</span> (<span class="keyword">this</span>.numOfThreads &lt; <span class="number">1</span>) &#123;</span><br><span class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> <span class="built_in">Error</span>(<span class="string">'线程池最小线程数应为1'</span>);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">for</span> (<span class="keyword">let</span> i = <span class="number">0</span>;i &lt; <span class="keyword">this</span>.numOfThreads; i++) &#123;</span><br><span class="line">            <span class="keyword">const</span> worker = <span class="keyword">new</span> Worker(<span class="keyword">this</span>.workerPath);</span><br><span class="line"></span><br><span class="line">            <span class="keyword">this</span>._workers[i] = worker;</span><br><span class="line">            <span class="keyword">this</span>._activeWorkers[i] = <span class="literal">false</span>;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 结束线程池中所有线程</span></span><br><span class="line">    destroy() &#123;</span><br><span class="line">        <span class="keyword">for</span> (<span class="keyword">let</span> i = <span class="number">0</span>; i &lt; <span class="keyword">this</span>.numOfThreads; i++) &#123;</span><br><span class="line">            <span class="keyword">if</span> (<span class="keyword">this</span>._activeWorkers[i]) &#123;</span><br><span class="line">                <span class="keyword">throw</span> <span class="keyword">new</span> <span class="built_in">Error</span>(<span class="string">`<span class="subst">$&#123;i&#125;</span>号线程仍在工作中...`</span>);</span><br><span class="line">            &#125;</span><br><span class="line">            <span class="keyword">this</span>._workers[i].terminate();</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 检查是否有空闲worker</span></span><br><span class="line">    checkWorkers() &#123;</span><br><span class="line">        <span class="keyword">for</span> (<span class="keyword">let</span> i = <span class="number">0</span>; i &lt; <span class="keyword">this</span>.numOfThreads; i++) &#123;</span><br><span class="line">            <span class="keyword">if</span> (!<span class="keyword">this</span>._activeWorkers[i]) &#123;</span><br><span class="line">                <span class="keyword">return</span> i;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">          </span><br><span class="line">        <span class="keyword">return</span> <span class="number">-1</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    run(getData) &#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">new</span> <span class="built_in">Promise</span>(<span class="function">(<span class="params">resolve, reject</span>) =&gt;</span> &#123;</span><br><span class="line">            <span class="keyword">const</span> restWorkerId = <span class="keyword">this</span>.checkWorkers();</span><br><span class="line"></span><br><span class="line">            <span class="keyword">const</span> queueItem = &#123;</span><br><span class="line">                getData,</span><br><span class="line">                callback: <span class="function">(<span class="params">error, result</span>) =&gt;</span> &#123;</span><br><span class="line">                    <span class="keyword">if</span> (error) &#123;</span><br><span class="line">                        <span class="keyword">return</span> reject(error);</span><br><span class="line">                    &#125;</span><br><span class="line">                    <span class="keyword">return</span> resolve(result);</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">            </span><br><span class="line">            <span class="comment">// 线程池已满,将任务加入任务队列</span></span><br><span class="line">            <span class="keyword">if</span> (restWorkerId === <span class="number">-1</span>) &#123;</span><br><span class="line">                <span class="keyword">this</span>._queue.push(queueItem);</span><br><span class="line">                <span class="keyword">return</span> <span class="literal">null</span>;</span><br><span class="line">            &#125;</span><br><span class="line">            </span><br><span class="line">            <span class="comment">// 空闲线程执行任务</span></span><br><span class="line">            <span class="keyword">this</span>.runWorker(restWorkerId, queueItem);</span><br><span class="line">        &#125;)</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">async</span> runWorker(workerId, queueItem) &#123;</span><br><span class="line">        <span class="keyword">const</span> worker = <span class="keyword">this</span>._workers[workerId];</span><br><span class="line">        <span class="keyword">this</span>._activeWorkers[workerId] = <span class="literal">true</span>;</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 线程结果回调</span></span><br><span class="line">        <span class="keyword">const</span> messageCallback = <span class="function">(<span class="params">result</span>) =&gt;</span> &#123;</span><br><span class="line">            queueItem.callback(<span class="literal">null</span>, result);</span><br><span class="line">            cleanUp();</span><br><span class="line">        &#125;;</span><br><span class="line">           </span><br><span class="line">        <span class="comment">// 线程错误回调</span></span><br><span class="line">        <span class="keyword">const</span> errorCallback = <span class="function">(<span class="params">error</span>) =&gt;</span> &#123;</span><br><span class="line">            queueItem.callback(error);</span><br><span class="line">            cleanUp();</span><br><span class="line">        &#125;;</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 任务结束消除旧监听器,若还有待完成任务,继续完成</span></span><br><span class="line">        <span class="keyword">const</span> cleanUp = <span class="function"><span class="params">()</span> =&gt;</span> &#123;</span><br><span class="line">            worker.removeAllListeners(<span class="string">'message'</span>);</span><br><span class="line">            worker.removeAllListeners(<span class="string">'error'</span>);</span><br><span class="line"></span><br><span class="line">            <span class="keyword">this</span>._activeWorkers[workerId] = <span class="literal">false</span>;</span><br><span class="line"></span><br><span class="line">            <span class="keyword">if</span> (!<span class="keyword">this</span>._queue.length) &#123;</span><br><span class="line">                <span class="keyword">return</span> <span class="literal">null</span>;</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            <span class="keyword">this</span>.runWorker(workerId, <span class="keyword">this</span>._queue.shift());</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 线程创建监听结果/错误回调</span></span><br><span class="line">        worker.once(<span class="string">'message'</span>, messageCallback);</span><br><span class="line">        worker.once(<span class="string">'error'</span>, errorCallback);</span><br><span class="line">        <span class="comment">// 向子线程传递初始data</span></span><br><span class="line">        worker.postMessage(queueItem.getData);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>创建一个<code>workerPool</code>类,在构造函数里传入要执行的js文件路径和要启动的线程池数,然后通过<code>init()</code>方法初始化多线程,并将它们的引用存储在<code>_workers</code>数组里,初始状态默认都为<code>false</code>不活跃存储在<code>_activeWorkers</code>数组中.</p>
+<p><code>run</code>方法分配执行任务,返回<code>Promise</code>调用任务的回调去<code>resolve/reject</code>,使用空闲线程<code>runWorker</code>执行任务,如果暂时没有空闲线程,就把任务<code>push</code>进<code>_queue</code>任务队列等待执行.</p>
+<p><code>runWorker</code>使用空闲线程指定任务,定义好结果回调和<code>error</code>回调,通过设置子线程的监听事件传递回调结果,把子线程的计算结果传递出来</p>
+<p>然后我们创建一个 <code>worker.js</code>在里面写CPU密集耗时操作:</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// worker.js</span></span><br><span class="line"><span class="keyword">const</span> &#123; isMainThread, parentPort &#125; = <span class="built_in">require</span>(<span class="string">'worker_threads'</span>);</span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> (isMainThread) &#123;</span><br><span class="line">    <span class="keyword">throw</span> <span class="keyword">new</span> <span class="built_in">Error</span>(<span class="string">'Its not a worker'</span>);</span><br><span class="line">&#125;</span><br><span class="line">    </span><br><span class="line"><span class="keyword">const</span> doCalcs = <span class="function">(<span class="params">data</span>) =&gt;</span> &#123;</span><br><span class="line">    <span class="keyword">const</span> collection = [];</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">for</span> (<span class="keyword">let</span> i = <span class="number">0</span>; i &lt; <span class="number">10</span>; i++) &#123;</span><br><span class="line">        collection[i] = <span class="built_in">Math</span>.round(<span class="built_in">Math</span>.random() * <span class="number">1000</span>);</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">return</span> collection.sort(<span class="function">(<span class="params">a, b</span>) =&gt;</span> &#123; <span class="keyword">return</span> a - b &#125;);</span><br><span class="line">&#125;;</span><br><span class="line">    </span><br><span class="line">parentPort.on(<span class="string">'message'</span>, (data) =&gt; &#123;</span><br><span class="line">    <span class="keyword">const</span> result = doCalcs(data);</span><br><span class="line">    parentPort.postMessage(result);</span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure>
+<p><del>这里就简单写了点排序,方便输出…</del></p>
+<p>然后通过<code>new WorkerPool</code>生成实例执行任务:</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br></pre></td><td class="code"><pre><span class="line">onst pool = <span class="keyword">new</span> WorkerPool(path.join(__dirname, <span class="string">'worker.js'</span>), <span class="number">4</span>);</span><br><span class="line"></span><br><span class="line"><span class="keyword">const</span> items = [...new <span class="built_in">Array</span>(<span class="number">10</span>)].fill(<span class="literal">null</span>);</span><br><span class="line"></span><br><span class="line"><span class="built_in">Promise</span>.all(items.map(<span class="keyword">async</span> (_, i) =&gt; &#123;</span><br><span class="line">	<span class="keyword">const</span> res = <span class="keyword">await</span> pool.run();</span><br><span class="line"></span><br><span class="line">    <span class="built_in">console</span>.log(<span class="string">`任务<span class="subst">$&#123;i&#125;</span>完成结果:`</span>, res);</span><br><span class="line">&#125;)).then(<span class="function"><span class="params">()</span> =&gt;</span> &#123;</span><br><span class="line">    <span class="built_in">console</span>.log(<span class="string">'所有任务完成 !'</span>);</span><br><span class="line">    <span class="comment">// 销毁线程池</span></span><br><span class="line">    pool.destroy();</span><br><span class="line">&#125;);</span><br><span class="line"></span><br><span class="line">=&gt;</span><br><span class="line">任务<span class="number">1</span>完成结果: [</span><br><span class="line">   <span class="number">45</span>,  <span class="number">96</span>, <span class="number">197</span>, <span class="number">314</span>,</span><br><span class="line">  <span class="number">606</span>, <span class="number">631</span>, <span class="number">648</span>, <span class="number">648</span>,</span><br><span class="line">  <span class="number">658</span>, <span class="number">874</span></span><br><span class="line">]</span><br><span class="line">任务<span class="number">4</span>完成结果: [</span><br><span class="line">   <span class="number">68</span>,  <span class="number">86</span>, <span class="number">124</span>, <span class="number">330</span>,</span><br><span class="line">  <span class="number">330</span>, <span class="number">469</span>, <span class="number">533</span>, <span class="number">766</span>,</span><br><span class="line">  <span class="number">772</span>, <span class="number">900</span></span><br><span class="line">]</span><br><span class="line">任务<span class="number">5</span>完成结果: [</span><br><span class="line">  <span class="number">107</span>, <span class="number">344</span>, <span class="number">370</span>, <span class="number">499</span>,</span><br><span class="line">  <span class="number">504</span>, <span class="number">627</span>, <span class="number">750</span>, <span class="number">840</span>,</span><br><span class="line">  <span class="number">873</span>, <span class="number">972</span></span><br><span class="line">]</span><br><span class="line">任务<span class="number">6</span>完成结果: [</span><br><span class="line">  <span class="number">218</span>, <span class="number">257</span>, <span class="number">282</span>, <span class="number">284</span>,</span><br><span class="line">  <span class="number">500</span>, <span class="number">607</span>, <span class="number">699</span>, <span class="number">723</span>,</span><br><span class="line">  <span class="number">739</span>, <span class="number">826</span></span><br><span class="line">]</span><br><span class="line">任务<span class="number">7</span>完成结果: [</span><br><span class="line">   <span class="number">31</span>,  <span class="number">98</span>, <span class="number">141</span>, <span class="number">190</span>,</span><br><span class="line">  <span class="number">428</span>, <span class="number">507</span>, <span class="number">685</span>, <span class="number">686</span>,</span><br><span class="line">  <span class="number">794</span>, <span class="number">945</span></span><br><span class="line">]</span><br><span class="line">任务<span class="number">8</span>完成结果: [</span><br><span class="line">   <span class="number">27</span>, <span class="number">100</span>, <span class="number">188</span>, <span class="number">245</span>,</span><br><span class="line">  <span class="number">471</span>, <span class="number">497</span>, <span class="number">514</span>, <span class="number">620</span>,</span><br><span class="line">  <span class="number">645</span>, <span class="number">993</span></span><br><span class="line">]</span><br><span class="line">任务<span class="number">9</span>完成结果: [</span><br><span class="line">  <span class="number">193</span>, <span class="number">336</span>, <span class="number">407</span>, <span class="number">455</span>,</span><br><span class="line">  <span class="number">478</span>, <span class="number">534</span>, <span class="number">564</span>, <span class="number">651</span>,</span><br><span class="line">  <span class="number">755</span>, <span class="number">963</span></span><br><span class="line">]</span><br><span class="line">任务<span class="number">2</span>完成结果: [</span><br><span class="line">  <span class="number">319</span>, <span class="number">337</span>, <span class="number">398</span>, <span class="number">549</span>,</span><br><span class="line">  <span class="number">587</span>, <span class="number">659</span>, <span class="number">670</span>, <span class="number">781</span>,</span><br><span class="line">  <span class="number">792</span>, <span class="number">843</span></span><br><span class="line">]</span><br><span class="line">任务<span class="number">3</span>完成结果: [</span><br><span class="line">  <span class="number">173</span>, <span class="number">188</span>, <span class="number">273</span>, <span class="number">406</span>,</span><br><span class="line">  <span class="number">445</span>, <span class="number">450</span>, <span class="number">582</span>, <span class="number">678</span>,</span><br><span class="line">  <span class="number">727</span>, <span class="number">882</span></span><br><span class="line">]</span><br><span class="line">任务<span class="number">0</span>完成结果: [</span><br><span class="line">   <span class="number">38</span>,  <span class="number">76</span>, <span class="number">134</span>, <span class="number">239</span>,</span><br><span class="line">  <span class="number">439</span>, <span class="number">468</span>, <span class="number">568</span>, <span class="number">696</span>,</span><br><span class="line">  <span class="number">910</span>, <span class="number">923</span></span><br><span class="line">]</span><br><span class="line">所有任务完成 !</span><br></pre></td></tr></table></figure>
+<h4 id="结语"><a href="#结语" class="headerlink" title="结语"></a>结语</h4><p><code>worker_threads</code>模块提供了真正的单进程多线程使用方法,我们可以将CPU密集的任务交给线程去解决,等有了结果后通过<code>MessageChannel</code>跨线程通信/或者使用共享内存.</p>
+<p>当然,上面这些例子都是最简单最基本的使用方式,真正运用到生产中根据不同的业务复杂度,<code>worker_threads</code>可能会有各种花里胡哨的运用和实现.</p>
+<h4 id="参考文章"><a href="#参考文章" class="headerlink" title="参考文章"></a>参考文章</h4><p>这些文章在我学习过程给予我非常大的帮助,有些作者已经在实际生产业务中有所实践,他们的学习过程和经验非常值得我们学习~有兴趣的同学可以选读一些加以学习,有所收获!</p>
+<p><a href="https://blog.csdn.net/weixin_33691598/article/details/91392543" target="_blank" rel="noopener">Node.js 真·多线程 Worker Threads 初探</a></p>
+<p><a href="https://www.jb51.net/article/158538.htm" target="_blank" rel="noopener">Node.js 多线程完全指南总结</a></p>
+<p><a href="https://stackoverflow.com/questions/51053222/nodejs-worker-threads-shared-object-sto" target="_blank" rel="noopener">nodejs-worker-threads-shared-object-store</a></p>
+<p><a href="https://juejin.im/post/5c63b5676fb9a049ac79a798#heading-4" target="_blank" rel="noopener">真-Node多线程</a></p>
+<p><a href="https://cloud.tencent.com/developer/article/1494064" target="_blank" rel="noopener">node 线程池技术让文档编译起飞</a></p>
+<p><a href="https://segmentfault.com/a/1190000019111942" target="_blank" rel="noopener">Node.js 异步原理-线程池-libuv</a></p>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2019/09/19/译-worker-threads-工作线程/" rel="next" title="[译]worker_threads (工作线程)">
+                <i class="fa fa-chevron-left"></i> [译]worker_threads (工作线程)
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+            
+              <img class="site-author-image" itemprop="image" src="/images/avatar.jpg" alt="ego">
+            
+              <p class="site-author-name" itemprop="name">ego</p>
+              <p class="site-description motion-element" itemprop="description">长恨人心不如水，等闲平地起波澜</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/">
+              
+                  <span class="site-state-item-count">9</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">2</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">13</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+            <div class="links-of-author motion-element">
+                
+                  <span class="links-of-author-item">
+                    <a href="https://github.com/ryanZiegler" target="_blank" title="GitHub">
+                      
+                        <i class="fa fa-fw fa-github"></i>GitHub</a>
+                  </span>
+                
+                  <span class="links-of-author-item">
+                    <a href="mailto:egoT@gmail.com" target="_blank" title="E-Mail">
+                      
+                        <i class="fa fa-fw fa-envelope"></i>E-Mail</a>
+                  </span>
+                
+            </div>
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-4"><a class="nav-link" href="#worker-threads模块内的对象和类"><span class="nav-number">1.</span> <span class="nav-text">worker_threads模块内的对象和类</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#如何创建一个子线程"><span class="nav-number">2.</span> <span class="nav-text">如何创建一个子线程</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#线程初始化数据"><span class="nav-number">3.</span> <span class="nav-text">线程初始化数据</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#线程间的通信"><span class="nav-number">4.</span> <span class="nav-text">线程间的通信</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#父子线程通信"><span class="nav-number">4.1.</span> <span class="nav-text">父子线程通信</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#子线程间通信"><span class="nav-number">4.2.</span> <span class="nav-text">子线程间通信</span></a></li></ol></li><li class="nav-item nav-level-4"><a class="nav-link" href="#线程共享内存"><span class="nav-number">5.</span> <span class="nav-text">线程共享内存</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#创建线程池"><span class="nav-number">6.</span> <span class="nav-text">创建线程池</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#结语"><span class="nav-number">7.</span> <span class="nav-text">结语</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#参考文章"><span class="nav-number">8.</span> <span class="nav-text">参考文章</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2019</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">ego</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Mist</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+  
+  
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/three/three.min.js"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/three/canvas_sphere.min.js"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+<script src="/live2dw/lib/L2Dwidget.min.js?0c58a1486de42ac6cc1c59c7d98ae887"></script><script>L2Dwidget.init({"log":false,"pluginJsPath":"lib/","pluginModelPath":"assets/","pluginRootPath":"live2dw/","tagMode":false});</script></body>
+</html>
