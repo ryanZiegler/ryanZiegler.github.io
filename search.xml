@@ -1,0 +1,749 @@
+<?xml version="1.0" encoding="utf-8"?>
+<search>
+  <entry>
+    <title>Node多线程worker_threads初探</title>
+    <url>/2019/09/26/Node%E5%A4%9A%E7%BA%BF%E7%A8%8Bworker-threads%E5%88%9D%E6%8E%A2/</url>
+    <content><![CDATA[<p>最近在面试求职的时候有被问到 Node 有没有办法实现多线程,我一拍脑袋,害,这个我会:</p>
+<p>“利用 cluster 模式通过 fork() 实例化多个 node 服务实例, 比如一个8核服务器,就可以启动8个独立实例,相互之间并不影响,十分稳定.最典型的工具就是 pm2.”</p>
+<p>“恩恩,你说的是 cluster 多进程模式,有没有多线程方式呢?”</p>
+<p>“啊…这个…那就通过 child_process 去 fork/spawn 一个子进程…”</p>
+<p>“这也是调起了一个子进程,并不是真正的多线程,有关注过 Node 的一些新特性/api 吗?”</p>
+<p>“饿…这个(此时的我是当真不知道 worker_threads….”</p>
+<p>然后结局很明显,在欢声笑语中打出GG…</p>
+<p>不甘心的我去<a href="http://nodejs.cn/api/worker_threads.html" target="_blank" rel="noopener">Node中文文档</a>查阅了相关资料,果不其然,我还是太年轻了:)</p>
+<a id="more"></a>
+<p>害! 为啥 Node中文文档居然英文API,于是我学习的同时顺便翻译了一哈.有兴趣学习或者了解 worker_threads 模块的同学可以点击<a href="[https://iiamego.com/2019/09/19/%E8%AF%91-worker-threads-%E5%B7%A5%E4%BD%9C%E7%BA%BF%E7%A8%8B/](https://iiamego.com/2019/09/19/译-worker-threads-工作线程/">这里</a>)查阅<del>(谷歌翻译+作者人肉翻译,如有错谬,还望海涵)</del></p>
+<p>ps: Node不是单线程的么? 实际上并不是, Node 单线程是指 v8 引擎执行 js 时是单线程的,就好像浏览器一个Tab进程中,就有GUI渲染线程, JS引擎线程,事件触发线程,定时器触发线程,异步请求http线程. <a href="https://segmentfault.com/a/1190000019111942#articleHeader0" target="_blank" rel="noopener">Node.js 异步原理</a>其实是通过 libuv 的线程池完成异步调用的;当你启动一个Node服务时,打开任务管理器,你会发现 Node 任务的线程数为7(主线程,编译/优化线程,分析器线程,垃圾回收线程等)</p>
+<h4 id="worker-threads模块内的对象和类"><a href="#worker-threads模块内的对象和类" class="headerlink" title="worker_threads模块内的对象和类"></a>worker_threads模块内的对象和类</h4><ul>
+<li>isMainThread: true表示为主线程, false表示为 worker 线程</li>
+<li>parentPort: 主线程为null, worker 线程表示为父进程的 MessagePort 类型对象</li>
+<li>SHARE_ENV: 指示主线程和 worker线程应共享的环境变量</li>
+<li>threadId: 当前线程的整数标识符,唯一</li>
+<li>workerData: 创建 worker 线程的初始化数据</li>
+<li>MessageChannel 类: 类的实例表示异步双向通信通道,即 MessagePort 实例</li>
+<li>MessagePort 类: 类的实例表示异步双向通信通道的一端</li>
+<li>Worker 类: 表示一个独立的 JavaScript 执行线程</li>
+</ul>
+<h4 id="如何创建一个子线程"><a href="#如何创建一个子线程" class="headerlink" title="如何创建一个子线程"></a>如何创建一个子线程</h4><p>首先确认自己 Node 版本环境支持 worker_threads 模块.如不支持,可以通过nvm下个最新的 Node.</p>
+<p>笔者在 Node.js 开发版本v12.6.0上测试该模块. 首先引入模块:</p>
+<figure class="highlight javascript"><table><tr><td class="code"><pre><span class="line"><span class="comment">// main.js</span></span><br><span class="line"><span class="keyword">const</span> &#123; Worker, isMainThread, parentPort, workerData, MessageChannel &#125; = <span class="built_in">require</span>(<span class="string">'worker_threads'</span>);</span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> (isMainThread) &#123;</span><br><span class="line">    <span class="built_in">console</span>.log(<span class="string">'我是主线程'</span>, isMainThread);</span><br><span class="line">    <span class="keyword">const</span> worker = <span class="keyword">new</span> Worker(__filename);</span><br><span class="line">&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">    <span class="built_in">console</span>.log(<span class="string">'我不是主线程'</span>, isMainThread);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">=&gt; 我是主线程 <span class="literal">true</span></span><br><span class="line">=&gt; 我不是主线程 <span class="literal">false</span></span><br></pre></td></tr></table></figure>
+<p>例子通过 new Worker 生成子线程重新执行了 main.js ,执行完毕, worker子线程自动销毁.</p>
+<p><code>__filename</code> 你可以写成你所要执行的具体 <code>worker.js</code> 所在的路径.</p>
+<p>除了通过 new Worker 去加载执行 js 文件,有没有办法直接执行 js 代码呢, 如下所示:</p>
+<figure class="highlight javascript"><table><tr><td class="code"><pre><span class="line"><span class="keyword">let</span> code = <span class="string">`</span></span><br><span class="line"><span class="string">for(let i = 0;i &lt; 5;i++) &#123;</span></span><br><span class="line"><span class="string">    console.log('worker线程执行中:', i);</span></span><br><span class="line"><span class="string">&#125;</span></span><br><span class="line"><span class="string">`</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">let</span> worker = <span class="keyword">new</span> Worker(code, &#123; <span class="attr">eval</span>: <span class="literal">true</span> &#125;);</span><br><span class="line"><span class="built_in">console</span>.log(<span class="string">'主线程执行完毕'</span>);</span><br><span class="line"></span><br><span class="line">=&gt; 主线程执行完毕</span><br><span class="line">=&gt; worker线程执行中: <span class="number">0</span></span><br><span class="line">=&gt; worker线程执行中: <span class="number">1</span></span><br><span class="line">=&gt; worker线程执行中: <span class="number">2</span></span><br><span class="line">=&gt; worker线程执行中: <span class="number">3</span></span><br><span class="line">=&gt; worker线程执行中: <span class="number">4</span></span><br></pre></td></tr></table></figure>
+<blockquote>
+<p>如果通过 port 设置了 port.on 监听事件, 除非手动 terminate 终结, 否则线程不会自动中断(或者和我一样使用 port.once 即监听一次) </p>
+</blockquote>
+<h4 id="线程初始化数据"><a href="#线程初始化数据" class="headerlink" title="线程初始化数据"></a>线程初始化数据</h4><p>即通过<code>workerData</code>完成完成线程数据初始化</p>
+<figure class="highlight javascript"><table><tr><td class="code"><pre><span class="line"><span class="keyword">const</span> data = &#123;</span><br><span class="line">    name: <span class="string">'ego同学'</span>,</span><br><span class="line">    age: <span class="number">23</span>,</span><br><span class="line">    sex: <span class="string">'male'</span>,</span><br><span class="line">    addr: <span class="string">'深圳南山'</span>,</span><br><span class="line">    arr: [&#123; <span class="attr">skill</span>: <span class="string">'coding'</span>&#125;, &#123; <span class="attr">hobby</span>: <span class="string">'basketball'</span> &#125;]</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> (isMainThread) &#123;</span><br><span class="line">    <span class="keyword">const</span> worker = <span class="keyword">new</span> Worker(__filename, &#123; <span class="attr">workerData</span>: data &#125;);</span><br><span class="line">&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">    workerData.age = <span class="number">16</span>;</span><br><span class="line">    workerData.arr[<span class="number">0</span>].skill = <span class="string">'sleep'</span>;</span><br><span class="line">    <span class="built_in">console</span>.log(data);</span><br><span class="line">    <span class="built_in">console</span>.log(workerData);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">=&gt;</span><br><span class="line">&#123;</span><br><span class="line">  name: <span class="string">'ego同学'</span>,</span><br><span class="line">  age: <span class="number">23</span>,</span><br><span class="line">  sex: <span class="string">'male'</span>,</span><br><span class="line">  addr: <span class="string">'深圳南山'</span>,</span><br><span class="line">  arr: [ &#123; <span class="attr">skill</span>: <span class="string">'coding'</span> &#125;, &#123; <span class="attr">hobby</span>: <span class="string">'basketball'</span> &#125; ]</span><br><span class="line">&#125;</span><br><span class="line">&#123;</span><br><span class="line">  name: <span class="string">'ego同学'</span>,</span><br><span class="line">  age: <span class="number">16</span>,</span><br><span class="line">  sex: <span class="string">'male'</span>,</span><br><span class="line">  addr: <span class="string">'深圳南山'</span>,</span><br><span class="line">  arr: [ &#123; <span class="attr">skill</span>: <span class="string">'sleep'</span> &#125;, &#123; <span class="attr">hobby</span>: <span class="string">'basketball'</span> &#125; ]</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h4 id="线程间的通信"><a href="#线程间的通信" class="headerlink" title="线程间的通信"></a>线程间的通信</h4><h5 id="父子线程通信"><a href="#父子线程通信" class="headerlink" title="父子线程通信"></a>父子线程通信</h5><figure class="highlight javascript"><table><tr><td class="code"><pre><span class="line"><span class="keyword">if</span> (isMainThread) &#123;</span><br><span class="line">    <span class="keyword">const</span> worker = <span class="keyword">new</span> Worker(__filename);</span><br><span class="line"></span><br><span class="line">    worker.postMessage(&#123;<span class="attr">name</span>: <span class="string">'ego同学'</span>&#125;);</span><br><span class="line">    worker.once(<span class="string">'message'</span>, (message) =&gt; &#123;</span><br><span class="line">        <span class="built_in">console</span>.log(<span class="string">'主线程接收信息:'</span>, message);</span><br><span class="line">    &#125;);</span><br><span class="line">&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">    parentPort.once(<span class="string">'message'</span>, (obj) =&gt; &#123;</span><br><span class="line">        <span class="built_in">console</span>.log(<span class="string">'子线程接收信息:'</span>, obj);</span><br><span class="line">        parentPort.postMessage(obj.name);</span><br><span class="line">    &#125;)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">=&gt; 子线程接收信息: &#123; <span class="attr">name</span>: <span class="string">'ego同学'</span> &#125;</span><br><span class="line">=&gt; 主线程接收信息: ego同学</span><br></pre></td></tr></table></figure>
+<p><code>parentPort</code>是生成 worker 线程时自动创建的<code>MessagePort</code>实例,用于与父进程进行通信.</p>
+<h5 id="子线程间通信"><a href="#子线程间通信" class="headerlink" title="子线程间通信"></a>子线程间通信</h5><figure class="highlight javascript"><table><tr><td class="code"><pre><span class="line"><span class="comment">//main.js</span></span><br><span class="line"><span class="keyword">const</span> path = <span class="built_in">require</span>(<span class="string">'path'</span>);</span><br><span class="line"></span><br><span class="line"><span class="keyword">const</span> &#123; port1, port2 &#125; = <span class="keyword">new</span> MessageChannel();</span><br><span class="line"><span class="keyword">if</span> (isMainThread) &#123;</span><br><span class="line">    <span class="keyword">const</span> worker1 = <span class="keyword">new</span> Worker(__filename);</span><br><span class="line">    <span class="keyword">const</span> worker2 = <span class="keyword">new</span> Worker(path.join(__dirname, <span class="string">'worker.js'</span>));</span><br><span class="line"></span><br><span class="line">    worker1.postMessage(&#123; port1 &#125;, [ port1 ]);</span><br><span class="line">    worker2.postMessage(&#123; port2 &#125;, [ port2 ]);</span><br><span class="line">&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">	parentPort.once(<span class="string">'message'</span>, (&#123; port1 &#125;) =&gt; &#123;</span><br><span class="line">        <span class="built_in">console</span>.log(<span class="string">'子线程1收到port1'</span>, port1);</span><br><span class="line">        port1.once(<span class="string">'message'</span>, (msg) =&gt; &#123;</span><br><span class="line">            <span class="built_in">console</span>.log(<span class="string">'子线程1收到'</span>, msg);</span><br><span class="line">        &#125;)</span><br><span class="line"></span><br><span class="line">        port1.postMessage(<span class="string">'port1 向 port2 发消息啦'</span>);</span><br><span class="line">    &#125;)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// worker.js</span></span><br><span class="line"><span class="keyword">const</span> &#123; parentPort &#125; = <span class="built_in">require</span>(<span class="string">'worker_threads'</span>);</span><br><span class="line"></span><br><span class="line">parentPort.once(<span class="string">'message'</span>, (&#123; port2 &#125;) =&gt; &#123;</span><br><span class="line">    <span class="built_in">console</span>.log(<span class="string">'子线程2收到port2'</span>);</span><br><span class="line"></span><br><span class="line">    port2.once(<span class="string">'message'</span>, (msg) =&gt; &#123;</span><br><span class="line">        <span class="built_in">console</span>.log(<span class="string">'子线程2收到'</span>, msg);</span><br><span class="line">    &#125;)</span><br><span class="line"></span><br><span class="line">    port2.postMessage(<span class="string">'这里是port2, over!'</span>);</span><br><span class="line">&#125;)</span><br><span class="line"></span><br><span class="line">=&gt;</span><br><span class="line">子线程<span class="number">1</span>收到port1</span><br><span class="line">子线程<span class="number">2</span>收到port2</span><br><span class="line">子线程<span class="number">1</span>收到 这里是port2, over!</span><br><span class="line">子线程<span class="number">2</span>收到 port1 向 port2 发消息啦</span><br></pre></td></tr></table></figure>
+<p>简单来说就是父线程将<code>MessageChannel</code>类生成的<code>MessagePort</code>对象实例分别发送到子线程中,两个子线程即可通过 <code>port1</code>,<code>port2</code>进行通信.</p>
+<p>菜徐坤疑问:</p>
+<p>worker线程实例可不可以通过<code>workerData</code>传递到另一个worker线程里直接使用呢?试一下:</p>
+<figure class="highlight javascript"><table><tr><td class="code"><pre><span class="line"><span class="comment">// main.js</span></span><br><span class="line"><span class="keyword">const</span> worker1 = <span class="keyword">new</span> Worker(__filename);</span><br><span class="line"><span class="keyword">const</span> worker2 = <span class="keyword">new</span> Worker(path.join(__dirname, <span class="string">'worker.js'</span>), &#123; <span class="attr">workerData</span>: worker1 &#125;);</span><br><span class="line"></span><br><span class="line"><span class="comment">// worker.js</span></span><br><span class="line"><span class="keyword">const</span> &#123; workerData &#125; = <span class="built_in">require</span>(<span class="string">'worker_threads'</span>);</span><br><span class="line"><span class="built_in">console</span>.log(workerData);</span><br><span class="line"></span><br><span class="line">=&gt;</span><br><span class="line">internal/worker.js:<span class="number">144</span></span><br><span class="line">    <span class="keyword">this</span>[kPort].postMessage(&#123;</span><br><span class="line">                ^</span><br><span class="line"></span><br><span class="line">DOMException [DataCloneError]: <span class="function">(<span class="params">name</span>) =&gt;</span> &#123;</span><br><span class="line">    <span class="keyword">if</span> (name === eventName &amp;&amp; eventEmitter.listenerCount(eventName) === <span class="number">0</span>) &#123;</span><br><span class="line">      port.ref();</span><br><span class="line"> ...&lt;omitted&gt;... &#125; could not be cloned.</span><br></pre></td></tr></table></figure>
+<p>抛出数据克隆错误 !</p>
+<p>OK,我们来看看 <a href="https://github.com/nodejs/node/blob/master/lib/internal/worker.js" target="_blank" rel="noopener">Node worker_thread模块源码</a> 如下:</p>
+<figure class="highlight javascript"><table><tr><td class="code"><pre><span class="line"><span class="comment">// node/lib/internal/worker.js</span></span><br><span class="line"></span><br><span class="line">...</span><br><span class="line"><span class="keyword">const</span> url = options.eval ? <span class="literal">null</span> : pathToFileURL(filename);</span><br><span class="line"><span class="comment">// Set up the C++ handle for the worker, as well as some internal wiring.</span></span><br><span class="line"><span class="comment">// 为工作程序设置C ++句柄以及一些内部连线。</span></span><br><span class="line"><span class="keyword">this</span>[kHandle] = <span class="keyword">new</span> WorkerImpl(url, options.execArgv);</span><br><span class="line"></span><br><span class="line">...</span><br><span class="line"></span><br><span class="line"><span class="keyword">this</span>[kPort] = <span class="keyword">this</span>[kHandle].messagePort;</span><br><span class="line"><span class="keyword">this</span>[kPort].on(<span class="string">'message'</span>, (data) =&gt; <span class="keyword">this</span>[kOnMessage](data));</span><br><span class="line"></span><br><span class="line">...</span><br><span class="line"></span><br><span class="line"><span class="keyword">const</span> &#123; port1, port2 &#125; = <span class="keyword">new</span> MessageChannel();</span><br><span class="line"><span class="keyword">this</span>[kPublicPort] = port1;</span><br><span class="line"><span class="keyword">this</span>[kPublicPort].on(<span class="string">'message'</span>, (message) =&gt; <span class="keyword">this</span>.emit(<span class="string">'message'</span>, message));</span><br><span class="line">setupPortReferencing(<span class="keyword">this</span>[kPublicPort], <span class="keyword">this</span>, <span class="string">'message'</span>);</span><br><span class="line"><span class="keyword">this</span>[kPort].postMessage(&#123;</span><br><span class="line">	type: messageTypes.LOAD_SCRIPT,</span><br><span class="line">    filename,</span><br><span class="line">    doEval: !!options.eval,</span><br><span class="line">    cwdCounter: cwdCounter || workerIo.sharedCwdCounter,</span><br><span class="line">    workerData: options.workerData,</span><br><span class="line">    publicPort: port2,</span><br><span class="line">    manifestSrc: getOptionValue(<span class="string">'--experimental-policy'</span>) ?</span><br><span class="line">      <span class="built_in">require</span>(<span class="string">'internal/process/policy'</span>).src :</span><br><span class="line">      <span class="literal">null</span>,</span><br><span class="line">    hasStdin: !!options.stdin</span><br><span class="line">&#125;, [port2]);</span><br><span class="line"><span class="comment">// Actually start the new thread now that everything is in place.</span></span><br><span class="line"><span class="comment">// 现在，一切就绪，实际上开始新线程。</span></span><br><span class="line"><span class="keyword">this</span>[kHandle].startThread();</span><br></pre></td></tr></table></figure>
+<p><code>workerData</code>是通过 <code>port.postMessagePort(value[, transferList])</code> 克隆副本传输给目标线程,即<code>workerData</code>通过<a href="https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Structured_clone_algorithm" target="_blank" rel="noopener">结构化克隆算法</a>进行复制:</p>
+<blockquote>
+<p>It builds up a clone by recursing through the input object while maintaining a map of previously visited references in order to avoid infinitely traversing cycles.</p>
+<p>通过递归遍历输入对象而建立一个副本，同时保持先前访问的引用的映射，以避免无限遍历循环。</p>
+</blockquote>
+<p>该算法不复制函数、错误、属性描述符或原型链,可以包含循环引用和类型化数组.</p>
+<h4 id="线程共享内存"><a href="#线程共享内存" class="headerlink" title="线程共享内存"></a>线程共享内存</h4><p><code>port.postMessage(value[, transferList])</code></p>
+<p><code>transferList</code>可以是<code>ArrayBuffer</code>和<code>MessagePort</code>对象的列表, 传递<code>ArrayBuffer</code>后,访问权限被修改,归属于消息接收方,它们将不再可用于频道的发送方 !!!</p>
+<p>线程间通过 clone 第一个参数来互相传递消息, 那如果我不想到处 clone 到处传递数据呢, 有办法解决吗? 答案是有的.</p>
+<p><code>cluster</code> 和 <code>child_process</code> 时通常使用 <code>SharedArrayBuffer</code> 来实现需要多进程共享的内存, 同样的 <code>value</code>可以包含<code>SharedArrayBuffer</code>实例,从而可以在任一线程访问这些实例 !</p>
+<figure class="highlight javascript"><table><tr><td class="code"><pre><span class="line"><span class="keyword">const</span> &#123; Worker, isMainThread, parentPort, MessageChannel, threadId &#125; = <span class="built_in">require</span>(<span class="string">'worker_threads'</span>);</span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> (isMainThread) &#123;</span><br><span class="line">    <span class="keyword">const</span> worker1 = <span class="keyword">new</span> Worker(__filename);</span><br><span class="line">    <span class="keyword">const</span> worker2 = <span class="keyword">new</span> Worker(__filename);</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">const</span> &#123; port1, port2 &#125; = <span class="keyword">new</span> MessageChannel();</span><br><span class="line">    <span class="keyword">const</span> sharedUint8Array = <span class="keyword">new</span> <span class="built_in">Uint8Array</span>(<span class="keyword">new</span> SharedArrayBuffer(<span class="number">4</span>));</span><br><span class="line">	<span class="comment">// 输出一下sharedUint8Array</span></span><br><span class="line">    <span class="built_in">console</span>.log(sharedUint8Array);</span><br><span class="line">    worker1.postMessage(&#123; <span class="attr">uPort</span>: port1, <span class="attr">data</span>: sharedUint8Array &#125;, [ port1 ]);</span><br><span class="line">    worker2.postMessage(&#123; <span class="attr">uPort</span>: port2, <span class="attr">data</span>: sharedUint8Array &#125;, [ port2 ]);</span><br><span class="line"></span><br><span class="line">    worker2.once(<span class="string">'message'</span>, (message) =&gt; &#123;</span><br><span class="line">        <span class="built_in">console</span>.log(<span class="string">`<span class="subst">$&#123;message&#125;</span>, 查看共享内存:<span class="subst">$&#123;sharedUint8Array&#125;</span>`</span>);</span><br><span class="line">    &#125;);</span><br><span class="line">&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">    parentPort.once(<span class="string">'message'</span>, (&#123; uPort, data &#125;) =&gt; &#123;</span><br><span class="line">        uPort.postMessage(<span class="string">`我是<span class="subst">$&#123;threadId&#125;</span>号线程`</span>);</span><br><span class="line">        uPort.on(<span class="string">'message'</span>, (msg) =&gt; &#123;</span><br><span class="line">            <span class="built_in">console</span>.log(<span class="string">`<span class="subst">$&#123;threadId&#125;</span>号收到:<span class="subst">$&#123;msg&#125;</span>`</span>);</span><br><span class="line">            <span class="keyword">if</span> (threadId === <span class="number">2</span>) &#123;</span><br><span class="line">                data[<span class="number">1</span>] = <span class="number">2</span>;</span><br><span class="line">                parentPort.postMessage(<span class="string">'2号线程修改了共享内存!!!'</span>);</span><br><span class="line">            &#125;</span><br><span class="line">            <span class="built_in">console</span>.log(<span class="string">`<span class="subst">$&#123;threadId&#125;</span>号查看共享内存:<span class="subst">$&#123;data&#125;</span>`</span>);</span><br><span class="line">        &#125;)</span><br><span class="line">    &#125;)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">=&gt;</span><br><span class="line"><span class="built_in">Uint8Array</span> [ <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span> ]</span><br><span class="line"><span class="number">2</span>号收到:我是<span class="number">1</span>号线程</span><br><span class="line"><span class="number">2</span>号线程修改了共享内存!!!, 查看共享内存:<span class="number">0</span>,<span class="number">2</span>,<span class="number">0</span>,<span class="number">0</span></span><br><span class="line"><span class="number">1</span>号收到:我是<span class="number">2</span>号线程</span><br><span class="line"><span class="number">2</span>号查看共享内存:<span class="number">0</span>,<span class="number">2</span>,<span class="number">0</span>,<span class="number">0</span></span><br><span class="line"><span class="number">1</span>号查看共享内存:<span class="number">0</span>,<span class="number">2</span>,<span class="number">0</span>,<span class="number">0</span></span><br></pre></td></tr></table></figure>
+<p>通过共享内存,  我们在一个线程中修改它, 意味所有线程中中进行了修改, 意味着数据的传递修改无需多次序列化clone, 是不是方便很多呢.</p>
+<p>如果不满足共享一个 Buffer 数组, 通常数据都是以对象的形式来存储传递的, 我们可以<a href="https://stackoverflow.com/questions/51053222/nodejs-worker-threads-shared-object-store" target="_blank" rel="noopener">创建类似的结构</a>来达到我们的目的.</p>
+<h4 id="创建线程池"><a href="#创建线程池" class="headerlink" title="创建线程池"></a>创建线程池</h4><p>worker 工作线程一般有两种使用方法:</p>
+<ul>
+<li>实行创建任务线程, 任务执行完毕后销毁释放</li>
+<li>预先创建线程池, 通过调度规划执行任务</li>
+</ul>
+<p>官方推荐线程池的使用方法, 毕竟一次次的创建销毁 worker 需要占用不小的开销, 我们可以根据实际业务情况来选择自己的使用方式.</p>
+<p>下面我们来实现一个简单的 worker_thread 线程池:</p>
+<figure class="highlight javascript"><table><tr><td class="code"><pre><span class="line"><span class="comment">// main.js</span></span><br><span class="line"><span class="keyword">const</span> path = <span class="built_in">require</span>(<span class="string">'path'</span>);</span><br><span class="line"><span class="keyword">const</span> &#123; Worker &#125; = <span class="built_in">require</span>(<span class="string">'worker_threads'</span>);</span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">WorkerPool</span> </span>&#123;</span><br><span class="line">    _workers = [];                    <span class="comment">// 线程引用数组</span></span><br><span class="line">    _activeWorkers = [];              <span class="comment">// 激活的线程数组</span></span><br><span class="line">    _queue = [];                      <span class="comment">// 任务队列</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">constructor</span>(workerPath, numOfThreads) &#123;</span><br><span class="line">        <span class="keyword">this</span>.workerPath = workerPath;</span><br><span class="line">        <span class="keyword">this</span>.numOfThreads = numOfThreads;</span><br><span class="line">        <span class="keyword">this</span>.init();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 初始化多线程</span></span><br><span class="line">    init() &#123;</span><br><span class="line">        <span class="keyword">if</span> (<span class="keyword">this</span>.numOfThreads &lt; <span class="number">1</span>) &#123;</span><br><span class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> <span class="built_in">Error</span>(<span class="string">'线程池最小线程数应为1'</span>);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">for</span> (<span class="keyword">let</span> i = <span class="number">0</span>;i &lt; <span class="keyword">this</span>.numOfThreads; i++) &#123;</span><br><span class="line">            <span class="keyword">const</span> worker = <span class="keyword">new</span> Worker(<span class="keyword">this</span>.workerPath);</span><br><span class="line"></span><br><span class="line">            <span class="keyword">this</span>._workers[i] = worker;</span><br><span class="line">            <span class="keyword">this</span>._activeWorkers[i] = <span class="literal">false</span>;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 结束线程池中所有线程</span></span><br><span class="line">    destroy() &#123;</span><br><span class="line">        <span class="keyword">for</span> (<span class="keyword">let</span> i = <span class="number">0</span>; i &lt; <span class="keyword">this</span>.numOfThreads; i++) &#123;</span><br><span class="line">            <span class="keyword">if</span> (<span class="keyword">this</span>._activeWorkers[i]) &#123;</span><br><span class="line">                <span class="keyword">throw</span> <span class="keyword">new</span> <span class="built_in">Error</span>(<span class="string">`<span class="subst">$&#123;i&#125;</span>号线程仍在工作中...`</span>);</span><br><span class="line">            &#125;</span><br><span class="line">            <span class="keyword">this</span>._workers[i].terminate();</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 检查是否有空闲worker</span></span><br><span class="line">    checkWorkers() &#123;</span><br><span class="line">        <span class="keyword">for</span> (<span class="keyword">let</span> i = <span class="number">0</span>; i &lt; <span class="keyword">this</span>.numOfThreads; i++) &#123;</span><br><span class="line">            <span class="keyword">if</span> (!<span class="keyword">this</span>._activeWorkers[i]) &#123;</span><br><span class="line">                <span class="keyword">return</span> i;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">          </span><br><span class="line">        <span class="keyword">return</span> <span class="number">-1</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    run(getData) &#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">new</span> <span class="built_in">Promise</span>(<span class="function">(<span class="params">resolve, reject</span>) =&gt;</span> &#123;</span><br><span class="line">            <span class="keyword">const</span> restWorkerId = <span class="keyword">this</span>.checkWorkers();</span><br><span class="line"></span><br><span class="line">            <span class="keyword">const</span> queueItem = &#123;</span><br><span class="line">                getData,</span><br><span class="line">                callback: <span class="function">(<span class="params">error, result</span>) =&gt;</span> &#123;</span><br><span class="line">                    <span class="keyword">if</span> (error) &#123;</span><br><span class="line">                        <span class="keyword">return</span> reject(error);</span><br><span class="line">                    &#125;</span><br><span class="line">                    <span class="keyword">return</span> resolve(result);</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">            </span><br><span class="line">            <span class="comment">// 线程池已满,将任务加入任务队列</span></span><br><span class="line">            <span class="keyword">if</span> (restWorkerId === <span class="number">-1</span>) &#123;</span><br><span class="line">                <span class="keyword">this</span>._queue.push(queueItem);</span><br><span class="line">                <span class="keyword">return</span> <span class="literal">null</span>;</span><br><span class="line">            &#125;</span><br><span class="line">            </span><br><span class="line">            <span class="comment">// 空闲线程执行任务</span></span><br><span class="line">            <span class="keyword">this</span>.runWorker(restWorkerId, queueItem);</span><br><span class="line">        &#125;)</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">async</span> runWorker(workerId, queueItem) &#123;</span><br><span class="line">        <span class="keyword">const</span> worker = <span class="keyword">this</span>._workers[workerId];</span><br><span class="line">        <span class="keyword">this</span>._activeWorkers[workerId] = <span class="literal">true</span>;</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 线程结果回调</span></span><br><span class="line">        <span class="keyword">const</span> messageCallback = <span class="function">(<span class="params">result</span>) =&gt;</span> &#123;</span><br><span class="line">            queueItem.callback(<span class="literal">null</span>, result);</span><br><span class="line">            cleanUp();</span><br><span class="line">        &#125;;</span><br><span class="line">           </span><br><span class="line">        <span class="comment">// 线程错误回调</span></span><br><span class="line">        <span class="keyword">const</span> errorCallback = <span class="function">(<span class="params">error</span>) =&gt;</span> &#123;</span><br><span class="line">            queueItem.callback(error);</span><br><span class="line">            cleanUp();</span><br><span class="line">        &#125;;</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 任务结束消除旧监听器,若还有待完成任务,继续完成</span></span><br><span class="line">        <span class="keyword">const</span> cleanUp = <span class="function"><span class="params">()</span> =&gt;</span> &#123;</span><br><span class="line">            worker.removeAllListeners(<span class="string">'message'</span>);</span><br><span class="line">            worker.removeAllListeners(<span class="string">'error'</span>);</span><br><span class="line"></span><br><span class="line">            <span class="keyword">this</span>._activeWorkers[workerId] = <span class="literal">false</span>;</span><br><span class="line"></span><br><span class="line">            <span class="keyword">if</span> (!<span class="keyword">this</span>._queue.length) &#123;</span><br><span class="line">                <span class="keyword">return</span> <span class="literal">null</span>;</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            <span class="keyword">this</span>.runWorker(workerId, <span class="keyword">this</span>._queue.shift());</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 线程创建监听结果/错误回调</span></span><br><span class="line">        worker.once(<span class="string">'message'</span>, messageCallback);</span><br><span class="line">        worker.once(<span class="string">'error'</span>, errorCallback);</span><br><span class="line">        <span class="comment">// 向子线程传递初始data</span></span><br><span class="line">        worker.postMessage(queueItem.getData);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>创建一个<code>workerPool</code>类,在构造函数里传入要执行的js文件路径和要启动的线程池数,然后通过<code>init()</code>方法初始化多线程,并将它们的引用存储在<code>_workers</code>数组里,初始状态默认都为<code>false</code>不活跃存储在<code>_activeWorkers</code>数组中.</p>
+<p><code>run</code>方法分配执行任务,返回<code>Promise</code>调用任务的回调去<code>resolve/reject</code>,使用空闲线程<code>runWorker</code>执行任务,如果暂时没有空闲线程,就把任务<code>push</code>进<code>_queue</code>任务队列等待执行.</p>
+<p><code>runWorker</code>使用空闲线程指定任务,定义好结果回调和<code>error</code>回调,通过设置子线程的监听事件传递回调结果,把子线程的计算结果传递出来</p>
+<p>然后我们创建一个 <code>worker.js</code>在里面写CPU密集耗时操作:</p>
+<figure class="highlight javascript"><table><tr><td class="code"><pre><span class="line"><span class="comment">// worker.js</span></span><br><span class="line"><span class="keyword">const</span> &#123; isMainThread, parentPort &#125; = <span class="built_in">require</span>(<span class="string">'worker_threads'</span>);</span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> (isMainThread) &#123;</span><br><span class="line">    <span class="keyword">throw</span> <span class="keyword">new</span> <span class="built_in">Error</span>(<span class="string">'Its not a worker'</span>);</span><br><span class="line">&#125;</span><br><span class="line">    </span><br><span class="line"><span class="keyword">const</span> doCalcs = <span class="function">(<span class="params">data</span>) =&gt;</span> &#123;</span><br><span class="line">    <span class="keyword">const</span> collection = [];</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">for</span> (<span class="keyword">let</span> i = <span class="number">0</span>; i &lt; <span class="number">10</span>; i++) &#123;</span><br><span class="line">        collection[i] = <span class="built_in">Math</span>.round(<span class="built_in">Math</span>.random() * <span class="number">1000</span>);</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">return</span> collection.sort(<span class="function">(<span class="params">a, b</span>) =&gt;</span> &#123; <span class="keyword">return</span> a - b &#125;);</span><br><span class="line">&#125;;</span><br><span class="line">    </span><br><span class="line">parentPort.on(<span class="string">'message'</span>, (data) =&gt; &#123;</span><br><span class="line">    <span class="keyword">const</span> result = doCalcs(data);</span><br><span class="line">    parentPort.postMessage(result);</span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure>
+<p><del>这里就简单写了点排序,方便输出…</del></p>
+<p>然后通过<code>new WorkerPool</code>生成实例执行任务:</p>
+<figure class="highlight javascript"><table><tr><td class="code"><pre><span class="line">onst pool = <span class="keyword">new</span> WorkerPool(path.join(__dirname, <span class="string">'worker.js'</span>), <span class="number">4</span>);</span><br><span class="line"></span><br><span class="line"><span class="keyword">const</span> items = [...new <span class="built_in">Array</span>(<span class="number">10</span>)].fill(<span class="literal">null</span>);</span><br><span class="line"></span><br><span class="line"><span class="built_in">Promise</span>.all(items.map(<span class="keyword">async</span> (_, i) =&gt; &#123;</span><br><span class="line">	<span class="keyword">const</span> res = <span class="keyword">await</span> pool.run();</span><br><span class="line"></span><br><span class="line">    <span class="built_in">console</span>.log(<span class="string">`任务<span class="subst">$&#123;i&#125;</span>完成结果:`</span>, res);</span><br><span class="line">&#125;)).then(<span class="function"><span class="params">()</span> =&gt;</span> &#123;</span><br><span class="line">    <span class="built_in">console</span>.log(<span class="string">'所有任务完成 !'</span>);</span><br><span class="line">    <span class="comment">// 销毁线程池</span></span><br><span class="line">    pool.destroy();</span><br><span class="line">&#125;);</span><br><span class="line"></span><br><span class="line">=&gt;</span><br><span class="line">任务<span class="number">1</span>完成结果: [</span><br><span class="line">   <span class="number">45</span>,  <span class="number">96</span>, <span class="number">197</span>, <span class="number">314</span>,</span><br><span class="line">  <span class="number">606</span>, <span class="number">631</span>, <span class="number">648</span>, <span class="number">648</span>,</span><br><span class="line">  <span class="number">658</span>, <span class="number">874</span></span><br><span class="line">]</span><br><span class="line">任务<span class="number">4</span>完成结果: [</span><br><span class="line">   <span class="number">68</span>,  <span class="number">86</span>, <span class="number">124</span>, <span class="number">330</span>,</span><br><span class="line">  <span class="number">330</span>, <span class="number">469</span>, <span class="number">533</span>, <span class="number">766</span>,</span><br><span class="line">  <span class="number">772</span>, <span class="number">900</span></span><br><span class="line">]</span><br><span class="line">任务<span class="number">5</span>完成结果: [</span><br><span class="line">  <span class="number">107</span>, <span class="number">344</span>, <span class="number">370</span>, <span class="number">499</span>,</span><br><span class="line">  <span class="number">504</span>, <span class="number">627</span>, <span class="number">750</span>, <span class="number">840</span>,</span><br><span class="line">  <span class="number">873</span>, <span class="number">972</span></span><br><span class="line">]</span><br><span class="line">任务<span class="number">6</span>完成结果: [</span><br><span class="line">  <span class="number">218</span>, <span class="number">257</span>, <span class="number">282</span>, <span class="number">284</span>,</span><br><span class="line">  <span class="number">500</span>, <span class="number">607</span>, <span class="number">699</span>, <span class="number">723</span>,</span><br><span class="line">  <span class="number">739</span>, <span class="number">826</span></span><br><span class="line">]</span><br><span class="line">任务<span class="number">7</span>完成结果: [</span><br><span class="line">   <span class="number">31</span>,  <span class="number">98</span>, <span class="number">141</span>, <span class="number">190</span>,</span><br><span class="line">  <span class="number">428</span>, <span class="number">507</span>, <span class="number">685</span>, <span class="number">686</span>,</span><br><span class="line">  <span class="number">794</span>, <span class="number">945</span></span><br><span class="line">]</span><br><span class="line">任务<span class="number">8</span>完成结果: [</span><br><span class="line">   <span class="number">27</span>, <span class="number">100</span>, <span class="number">188</span>, <span class="number">245</span>,</span><br><span class="line">  <span class="number">471</span>, <span class="number">497</span>, <span class="number">514</span>, <span class="number">620</span>,</span><br><span class="line">  <span class="number">645</span>, <span class="number">993</span></span><br><span class="line">]</span><br><span class="line">任务<span class="number">9</span>完成结果: [</span><br><span class="line">  <span class="number">193</span>, <span class="number">336</span>, <span class="number">407</span>, <span class="number">455</span>,</span><br><span class="line">  <span class="number">478</span>, <span class="number">534</span>, <span class="number">564</span>, <span class="number">651</span>,</span><br><span class="line">  <span class="number">755</span>, <span class="number">963</span></span><br><span class="line">]</span><br><span class="line">任务<span class="number">2</span>完成结果: [</span><br><span class="line">  <span class="number">319</span>, <span class="number">337</span>, <span class="number">398</span>, <span class="number">549</span>,</span><br><span class="line">  <span class="number">587</span>, <span class="number">659</span>, <span class="number">670</span>, <span class="number">781</span>,</span><br><span class="line">  <span class="number">792</span>, <span class="number">843</span></span><br><span class="line">]</span><br><span class="line">任务<span class="number">3</span>完成结果: [</span><br><span class="line">  <span class="number">173</span>, <span class="number">188</span>, <span class="number">273</span>, <span class="number">406</span>,</span><br><span class="line">  <span class="number">445</span>, <span class="number">450</span>, <span class="number">582</span>, <span class="number">678</span>,</span><br><span class="line">  <span class="number">727</span>, <span class="number">882</span></span><br><span class="line">]</span><br><span class="line">任务<span class="number">0</span>完成结果: [</span><br><span class="line">   <span class="number">38</span>,  <span class="number">76</span>, <span class="number">134</span>, <span class="number">239</span>,</span><br><span class="line">  <span class="number">439</span>, <span class="number">468</span>, <span class="number">568</span>, <span class="number">696</span>,</span><br><span class="line">  <span class="number">910</span>, <span class="number">923</span></span><br><span class="line">]</span><br><span class="line">所有任务完成 !</span><br></pre></td></tr></table></figure>
+<h4 id="结语"><a href="#结语" class="headerlink" title="结语"></a>结语</h4><p><code>worker_threads</code>模块提供了真正的单进程多线程使用方法,我们可以将CPU密集的任务交给线程去解决,等有了结果后通过<code>MessageChannel</code>跨线程通信/或者使用共享内存.</p>
+<p>当然,上面这些例子都是最简单最基本的使用方式,真正运用到生产中根据不同的业务复杂度,<code>worker_threads</code>可能会有各种花里胡哨的运用和实现.</p>
+<h4 id="参考文章"><a href="#参考文章" class="headerlink" title="参考文章"></a>参考文章</h4><p>这些文章在我学习过程给予我非常大的帮助,有些作者已经在实际生产业务中有所实践,他们的学习过程和经验非常值得我们学习~有兴趣的同学可以选读一些加以学习,有所收获!</p>
+<p><a href="https://blog.csdn.net/weixin_33691598/article/details/91392543" target="_blank" rel="noopener">Node.js 真·多线程 Worker Threads 初探</a></p>
+<p><a href="https://www.jb51.net/article/158538.htm" target="_blank" rel="noopener">Node.js 多线程完全指南总结</a></p>
+<p><a href="https://stackoverflow.com/questions/51053222/nodejs-worker-threads-shared-object-sto" target="_blank" rel="noopener">nodejs-worker-threads-shared-object-store</a></p>
+<p><a href="https://juejin.im/post/5c63b5676fb9a049ac79a798#heading-4" target="_blank" rel="noopener">真-Node多线程</a></p>
+<p><a href="https://cloud.tencent.com/developer/article/1494064" target="_blank" rel="noopener">node 线程池技术让文档编译起飞</a></p>
+<p><a href="https://segmentfault.com/a/1190000019111942" target="_blank" rel="noopener">Node.js 异步原理-线程池-libuv</a></p>
+]]></content>
+  </entry>
+  <entry>
+    <title>[译]worker_threads (工作线程)</title>
+    <url>/2019/09/19/%E8%AF%91-worker-threads-%E5%B7%A5%E4%BD%9C%E7%BA%BF%E7%A8%8B/</url>
+    <content><![CDATA[<p><strong> 本文翻译自 <a href="http://nodejs.cn/api/worker_threads.html" target="_blank" rel="noopener">Node中文文档</a> </strong></p>
+<p><strong>稳定性: 1 - 试验</strong>(此特性不受语义版本控制规则的约束，在将来的任何版本中都会受到非向后兼容的更改或删除。 建议不要在生产环境中使用该特性。)</p>
+<p>worker_threads 模块允许使用并行执行 JavaScript 的线程。首先引入模块:<br><code>const worker = require(&#39;worker_threads&#39;);</code><br>工作线程（线程）对于执行 CPU 密集型 JavaScript 操作非常有用。他们对于 I / O 密集型工作没有多大帮助，Node.js 的内置异步 I / O 操作比 Workers 更高效。<br>不同于<code>child_process</code>或者<code>cluster</code>， <code>worker_threads</code>能够共享内存。 他们能够传递<code>ArrayBuffer</code>实例或者共享<code>sharedArrayBuffer</code>实例。</p>
+<a id="more"></a>
+<figure class="highlight javascript"><table><tr><td class="code"><pre><span class="line"><span class="keyword">const</span> &#123;</span><br><span class="line">  Worker, isMainThread, parentPort, workerData</span><br><span class="line">&#125; = <span class="built_in">require</span>(<span class="string">'worker_threads'</span>);</span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> (isMainThread) &#123;</span><br><span class="line">  <span class="built_in">module</span>.exports = <span class="function"><span class="keyword">function</span> <span class="title">parseJSAsync</span>(<span class="params">script</span>) </span>&#123;</span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">new</span> <span class="built_in">Promise</span>(<span class="function">(<span class="params">resolve, reject</span>) =&gt;</span> &#123;</span><br><span class="line">      <span class="keyword">const</span> worker = <span class="keyword">new</span> Worker(__filename, &#123;</span><br><span class="line">        workerData: script</span><br><span class="line">      &#125;);</span><br><span class="line">      worker.on(<span class="string">'message'</span>, resolve);</span><br><span class="line">      worker.on(<span class="string">'error'</span>, reject);</span><br><span class="line">      worker.on(<span class="string">'exit'</span>, (code) =&gt; &#123;</span><br><span class="line">        <span class="keyword">if</span> (code !== <span class="number">0</span>)</span><br><span class="line">          reject(<span class="keyword">new</span> <span class="built_in">Error</span>(<span class="string">`Worker stopped with exit code <span class="subst">$&#123;code&#125;</span>`</span>));</span><br><span class="line">      &#125;);</span><br><span class="line">    &#125;);</span><br><span class="line">  &#125;;</span><br><span class="line">&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">  <span class="keyword">const</span> &#123; parse &#125; = <span class="built_in">require</span>(<span class="string">'some-js-parsing-library'</span>);</span><br><span class="line">  <span class="keyword">const</span> script = workerData;</span><br><span class="line">  parentPort.postMessage(parse(script));</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>上面的例子为每个<code>parse()</code>调用生成一个 Worker 线程.。在实际操作中， 通常使用线程池代替这些类型的任务。否则，创建这些任务的开销可能会大于创建线程的收益。<br>实现线程池时,，使用<code>AsyncResource</code> API 通知诊断工具(例如，为了提供异步堆栈跟踪)，以关联任务和结果。</p>
+<h4 id="worker-isMainThread"><a href="#worker-isMainThread" class="headerlink" title="worker.isMainThread"></a>worker.isMainThread</h4><p>新增于: v10.5.0</p>
+<ul>
+<li><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Boolean_type" target="_blank" rel="noopener">boolean</a></li>
+</ul>
+<p>如果代码未在 Worker 线程内运行，则为true。</p>
+<figure class="highlight javascript"><table><tr><td class="code"><pre><span class="line"><span class="keyword">const</span> &#123; Worker, isMainThread &#125; = <span class="built_in">require</span>(<span class="string">'worker_threads'</span>);</span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> (isMainThread) &#123;</span><br><span class="line">  <span class="comment">// This re-loads the current file inside a Worker instance.</span></span><br><span class="line">  <span class="comment">// 这会在Worker实例中重新加载当前文件。</span></span><br><span class="line">  <span class="keyword">new</span> Worker(__filename);</span><br><span class="line">&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">  <span class="built_in">console</span>.log(<span class="string">'Inside Worker!'</span>);</span><br><span class="line">  <span class="built_in">console</span>.log(isMainThread);  <span class="comment">// Prints 'false'.</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h4 id="worker-moveMessagePortToContext-port-contextifiedSandbox"><a href="#worker-moveMessagePortToContext-port-contextifiedSandbox" class="headerlink" title="worker.moveMessagePortToContext(port, contextifiedSandbox)"></a>worker.moveMessagePortToContext(port, contextifiedSandbox)</h4><p>新增于: v11.13.0</p>
+<ul>
+<li><code>port</code> <a href="http://nodejs.cn/api/worker_threads.html#worker_threads_class_messageport" target="_blank" rel="noopener">MessagePort</a> 消息传输的端口</li>
+<li><code>contextifiedSandbox</code>  <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object" target="_blank" rel="noopener">Object</a>  <code>vm.createContext()</code>方法返回的一个<a href="http://nodejs.cn/api/vm.html" target="_blank" rel="noopener">上下文</a>对象。</li>
+<li>返回: <a href="http://nodejs.cn/api/worker_threads.html#worker_threads_class_messageport" target="_blank" rel="noopener">MessagePort</a></li>
+</ul>
+<p>将<code>MessagePort</code>传输到不同的vm上下文。原始<code>port</code>对象将变为不可用，并且返回的<code>MessagePort</code>实例将取代它。</p>
+<p>返回的<code>MessagePort</code>是目标上下文中的对象，并继承于全局<code>Object</code>类。同时<code>port.onmessage()</code>监听器对象也将在目标上下文中创建，并继承于全局<code>Object</code>类。</p>
+<p>但是，创建的<code>MessagePort</code>将不再继承<a href="http://nodejs.cn/api/events.html" target="_blank" rel="noopener">EventEmitter</a>，并且只能使用<code>port.onmessage()</code>来接收使用它的事件。</p>
+<h4 id="worker-parentPort"><a href="#worker-parentPort" class="headerlink" title="worker.parentPort"></a>worker.parentPort</h4><p>新增于: v10.5.0</p>
+<ul>
+<li><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Null_type" target="_blank" rel="noopener">null</a> | <a href="http://nodejs.cn/api/worker_threads.html#worker_threads_class_messageport" target="_blank" rel="noopener">MessagePort</a></li>
+</ul>
+<p>如果该线程通过<a href="http://nodejs.cn/api/worker_threads.html#worker_threads_class_worker" target="_blank" rel="noopener"><code>Worker</code></a>生成的，它将会是个<code>MessagePort</code>允许与父线程进行通信。使用<code>parentPort.postMessage()</code>发送的消息将在使用<code>worker.on(&#39;message&#39;)</code>的父线程中可用，使用<code>worker.postMessage()</code>从父线程发送的消息将在此线程中使用<code>parentPort.on(&#39;message&#39;)</code>接收。</p>
+<figure class="highlight javascript"><table><tr><td class="code"><pre><span class="line"><span class="keyword">const</span> &#123; Worker, isMainThread, parentPort &#125; = <span class="built_in">require</span>(<span class="string">'worker_threads'</span>);</span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> (isMainThread) &#123;</span><br><span class="line">  <span class="keyword">const</span> worker = <span class="keyword">new</span> Worker(__filename);</span><br><span class="line">  worker.once(<span class="string">'message'</span>, (message) =&gt; &#123;</span><br><span class="line">    <span class="built_in">console</span>.log(message);  <span class="comment">// Prints 'Hello, world!'.</span></span><br><span class="line">  &#125;);</span><br><span class="line">  worker.postMessage(<span class="string">'Hello, world!'</span>);</span><br><span class="line">&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">  <span class="comment">// When a message from the parent thread is received, send it back:</span></span><br><span class="line">  <span class="comment">// 收到来自父线程的消息后，将其发回：</span></span><br><span class="line">  parentPort.once(<span class="string">'message'</span>, (message) =&gt; &#123;</span><br><span class="line">    parentPort.postMessage(message);</span><br><span class="line">  &#125;);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h4 id="worker-receiveMessageOnPort-port"><a href="#worker-receiveMessageOnPort-port" class="headerlink" title="worker.receiveMessageOnPort(port)"></a>worker.receiveMessageOnPort(port)</h4><p>新增于:  v12.3.0</p>
+<ul>
+<li><code>port</code> <a href="http://nodejs.cn/api/worker_threads.html#worker_threads_class_messageport" target="_blank" rel="noopener">MessagePort</a></li>
+<li>Returns: <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object" target="_blank" rel="noopener">Objects</a> | <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Undefined_type" target="_blank" rel="noopener">undefined</a></li>
+</ul>
+<p>从给定的<code>MessagePort</code>接收单个消息。如果没有可用消息，则返回<code>undefined</code>，否则返回具有单个<code>message</code> 属性的对象，该消息属性包含消息有效内容，对应于<code>MessagePort</code>队列中最旧的消息。</p>
+<figure class="highlight javascript"><table><tr><td class="code"><pre><span class="line"><span class="keyword">const</span> &#123; MessageChannel, receiveMessageOnPort &#125; = <span class="built_in">require</span>(<span class="string">'worker_threads'</span>);</span><br><span class="line"><span class="keyword">const</span> &#123; port1, port2 &#125; = <span class="keyword">new</span> MessageChannel();</span><br><span class="line">port1.postMessage(&#123; <span class="attr">hello</span>: <span class="string">'world'</span> &#125;);</span><br><span class="line"></span><br><span class="line"><span class="built_in">console</span>.log(receiveMessageOnPort(port2));</span><br><span class="line"><span class="comment">// Prints: &#123; message: &#123; hello: 'world' &#125; &#125;</span></span><br><span class="line"><span class="built_in">console</span>.log(receiveMessageOnPort(port2));</span><br><span class="line"><span class="comment">// Prints: undefined</span></span><br></pre></td></tr></table></figure>
+<p>使用此函数时，不会发出<code>message</code>事件，也不会调用<code>onmessage</code>监听器。</p>
+<h4 id="worker-SHARE-ENV"><a href="#worker-SHARE-ENV" class="headerlink" title="worker.SHARE_ENV"></a>worker.SHARE_ENV</h4><p>新增于: v11.14.0</p>
+<ul>
+<li><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Symbol_type" target="_blank" rel="noopener">symbol</a></li>
+</ul>
+<p>一个特殊值，可以作为Worker构造函数的<code>env</code>选项传递，以指示当前线程和Worker线程应该共享对同一组环境变量的读写访问权限。</p>
+<figure class="highlight javascript"><table><tr><td class="code"><pre><span class="line"><span class="keyword">const</span> &#123; Worker, SHARE_ENV &#125; = <span class="built_in">require</span>(<span class="string">'worker_threads'</span>);</span><br><span class="line"><span class="keyword">new</span> Worker(<span class="string">'process.env.SET_IN_WORKER = "foo"'</span>, &#123; <span class="attr">eval</span>: <span class="literal">true</span>, <span class="attr">env</span>: SHARE_ENV &#125;)</span><br><span class="line">  .on(<span class="string">'exit'</span>, () =&gt; &#123;</span><br><span class="line">    <span class="built_in">console</span>.log(process.env.SET_IN_WORKER);  <span class="comment">// Prints 'foo'.</span></span><br><span class="line">  &#125;);</span><br></pre></td></tr></table></figure>
+<h4 id="worker-threadId"><a href="#worker-threadId" class="headerlink" title="worker.threadId"></a>worker.threadId</h4><p>新增于: v10.5.0</p>
+<ul>
+<li><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Number_type" target="_blank" rel="noopener">integer</a></li>
+</ul>
+<p>当前线程的整数标识符。在相应的工作对象（如果有）上，它可以作为<code>worker.threadId</code>使用。对于单个进程内的每个Worker实例，此值是唯一的。</p>
+<h4 id="worker-workerData"><a href="#worker-workerData" class="headerlink" title="worker.workerData"></a>worker.workerData</h4><p>新增于: v10.5.0</p>
+<p>一个任意JavaScript值，包含传递给此线程的Worker构造函数的数据的克隆。根据HTML结构化克隆算法，克隆数据就好像使用postMessage（）一样。</p>
+<figure class="highlight javascript"><table><tr><td class="code"><pre><span class="line"><span class="keyword">const</span> &#123; Worker, isMainThread, workerData &#125; = <span class="built_in">require</span>(<span class="string">'worker_threads'</span>);</span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> (isMainThread) &#123;</span><br><span class="line">  <span class="keyword">const</span> worker = <span class="keyword">new</span> Worker(__filename, &#123; <span class="attr">workerData</span>: <span class="string">'Hello, world!'</span> &#125;);</span><br><span class="line">&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">  <span class="built_in">console</span>.log(workerData);  <span class="comment">// Prints 'Hello, world!'.</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="MessageChannel-类"><a href="#MessageChannel-类" class="headerlink" title="MessageChannel 类"></a>MessageChannel 类</h3><p>新增于: v10.5.0</p>
+<p><code>worker.MessageChannel</code>类的实例表示异步双向通信通道。<code>MessageChannel</code>没有自己的方法。新的<code>MessageChannel（）</code>生成一个具有port1和port2属性的对象，这些属性引用链接的MessagePort实例。</p>
+<figure class="highlight javascript"><table><tr><td class="code"><pre><span class="line"><span class="keyword">const</span> &#123; MessageChannel &#125; = <span class="built_in">require</span>(<span class="string">'worker_threads'</span>);</span><br><span class="line"></span><br><span class="line"><span class="keyword">const</span> &#123; port1, port2 &#125; = <span class="keyword">new</span> MessageChannel();</span><br><span class="line">port1.on(<span class="string">'message'</span>, (message) =&gt; <span class="built_in">console</span>.log(<span class="string">'received'</span>, message));</span><br><span class="line">port2.postMessage(&#123; <span class="attr">foo</span>: <span class="string">'bar'</span> &#125;);</span><br><span class="line"><span class="comment">// Prints: received &#123; foo: 'bar' &#125; from the `port1.on('message')` listener</span></span><br></pre></td></tr></table></figure>
+<h3 id="MessagePort-类"><a href="#MessagePort-类" class="headerlink" title="MessagePort 类"></a>MessagePort 类</h3><p>新增于: v10.5.0</p>
+<ul>
+<li>继承于: <a href="http://nodejs.cn/api/events.html" target="_blank" rel="noopener">EventEmitter</a></li>
+</ul>
+<p><code>worker.MessagePort</code>类的实例表示异步双向通信通道的一端。它可用于在不同的Worker之间传输结构化数据，内存区域和其他<code>MessagePort</code>。</p>
+<p>除了<code>MessagePorts</code>是EventEmitters而不是EventTargets之外，此实现与浏览器MessagePorts匹配。</p>
+<h4 id="‘close’-事件"><a href="#‘close’-事件" class="headerlink" title="‘close’ 事件"></a>‘close’ 事件</h4><p>新增于: v10.5.0</p>
+<p>一旦通道的任一侧断开，就会发出<code>&#39;close&#39;</code>事件。</p>
+<figure class="highlight javascript"><table><tr><td class="code"><pre><span class="line"><span class="keyword">const</span> &#123; MessageChannel &#125; = <span class="built_in">require</span>(<span class="string">'worker_threads'</span>);</span><br><span class="line"><span class="keyword">const</span> &#123; port1, port2 &#125; = <span class="keyword">new</span> MessageChannel();</span><br><span class="line"></span><br><span class="line"><span class="comment">// Prints:</span></span><br><span class="line"><span class="comment">//   foobar</span></span><br><span class="line"><span class="comment">//   closed!</span></span><br><span class="line">port2.on(<span class="string">'message'</span>, (message) =&gt; <span class="built_in">console</span>.log(message));</span><br><span class="line">port2.on(<span class="string">'close'</span>, () =&gt; <span class="built_in">console</span>.log(<span class="string">'closed!'</span>));</span><br><span class="line"></span><br><span class="line">port1.postMessage(<span class="string">'foobar'</span>);</span><br><span class="line">port1.close();</span><br></pre></td></tr></table></figure>
+<h4 id="‘message’-事件"><a href="#‘message’-事件" class="headerlink" title="‘message’ 事件"></a>‘message’ 事件</h4><p>新增于: v10.5.0</p>
+<ul>
+<li><code>value</code><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Data_types" target="_blank" rel="noopener">any</a> 传播属性 </li>
+</ul>
+<p>为任何传入消息发出<code>&#39;message&#39;</code>事件，其中包含<code>port.postMessage（）</code>的克隆输入。</p>
+<p>此事件的监听器将收到传递给<code>postMessage（）</code>的值参数的克隆，并且没有其他参数。</p>
+<h4 id="port-close"><a href="#port-close" class="headerlink" title="port.close()"></a>port.close()</h4><p>新增于: v10.5.0</p>
+<p>禁用在连接两侧进一步发送消息。当此<code>MessagePort</code>上不再进行任何通信时，可以调用此方法。</p>
+<p>‘close’事件将在作为通道一部分的两个<code>MessagePort</code>实例上发出。</p>
+<h4 id="port-postMessage-value-transferList"><a href="#port-postMessage-value-transferList" class="headerlink" title="port.postMessage(value[, transferList])"></a>port.postMessage(value[, transferList])</h4><p>新增于: v10.5.0</p>
+<ul>
+<li><code>value</code> <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Data_types" target="_blank" rel="noopener">any</a></li>
+<li><code>transferList</code> <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object" target="_blank" rel="noopener">Object()</a></li>
+</ul>
+<p>将JavaScript值发送到此频道的接收方。<code>value</code>将以与HTML结构化克隆算法兼容的方式传输。特别是，与<code>JSON</code>的显着差异是：</p>
+<ul>
+<li><code>value</code>可能包含循环引用。</li>
+<li><code>value</code>可能包含内置JS类型的实例，例如<code>RegExp</code>s，<code>BigInt</code>s，<code>Map</code>s，<code>Set</code>s等。</li>
+<li><code>value</code>可以包含使用<code>ArrayBuffers</code>和<code>SharedArrayBuffers</code>的类型化数组。</li>
+<li><code>value</code>可能包含<code>WebAssembly.Module</code>实例。</li>
+<li><code>value</code>可能不包含除MessagePorts之外的本机（C ++支持）对象。</li>
+</ul>
+<figure class="highlight javascript"><table><tr><td class="code"><pre><span class="line"><span class="keyword">const</span> &#123; MessageChannel &#125; = <span class="built_in">require</span>(<span class="string">'worker_threads'</span>);</span><br><span class="line"><span class="keyword">const</span> &#123; port1, port2 &#125; = <span class="keyword">new</span> MessageChannel();</span><br><span class="line"></span><br><span class="line">port1.on(<span class="string">'message'</span>, (message) =&gt; <span class="built_in">console</span>.log(message));</span><br><span class="line"></span><br><span class="line"><span class="keyword">const</span> circularData = &#123;&#125;;</span><br><span class="line">circularData.foo = circularData;</span><br><span class="line"><span class="comment">// Prints: &#123; foo: [Circular] &#125;</span></span><br><span class="line">port2.postMessage(circularData);</span><br></pre></td></tr></table></figure>
+<p><code>transferList</code>可以是<code>ArrayBuffer</code>和<code>MessagePort</code>对象的列表。转移后，它们将不再可用于频道的发送方（即使它们未包含在值中）。与子进程不同，目前不支持传输诸如网络套接字之类的句柄。</p>
+<p>如果<code>value</code>包含<code>SharedArrayBuffer</code>实例，则可以从任一线程访问这些实例。它们不能列在<code>transferList</code>中。</p>
+<p><code>value</code>可能仍包含不在<code>transferList</code>中的<code>ArrayBuffer</code>实例;在这种情况下，底层内存被复制而不是移动。</p>
+<figure class="highlight javascript"><table><tr><td class="code"><pre><span class="line"><span class="keyword">const</span> &#123; MessageChannel &#125; = <span class="built_in">require</span>(<span class="string">'worker_threads'</span>);</span><br><span class="line"><span class="keyword">const</span> &#123; port1, port2 &#125; = <span class="keyword">new</span> MessageChannel();</span><br><span class="line"></span><br><span class="line">port1.on(<span class="string">'message'</span>, (message) =&gt; <span class="built_in">console</span>.log(message));</span><br><span class="line"></span><br><span class="line"><span class="keyword">const</span> uint8Array = <span class="keyword">new</span> <span class="built_in">Uint8Array</span>([ <span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>, <span class="number">4</span> ]);</span><br><span class="line"><span class="comment">// This posts a copy of `uint8Array`:</span></span><br><span class="line"><span class="comment">// 发送了一份uint8Array的复制体:</span></span><br><span class="line">port2.postMessage(uint8Array);</span><br><span class="line"><span class="comment">// This does not copy data, but renders `uint8Array` unusable:</span></span><br><span class="line"><span class="comment">// 这不会复制数据，但会使`uint8Array`无法使用：</span></span><br><span class="line">port2.postMessage(uint8Array, [ uint8Array.buffer ]);</span><br><span class="line"></span><br><span class="line"><span class="comment">// The memory for the `sharedUint8Array` will be accessible from both the</span></span><br><span class="line"><span class="comment">// original and the copy received by `.on('message')`:</span></span><br><span class="line"><span class="comment">// `sharedUint8Array`的内存可以从两个地方原文和`.on（'message'）`收到的副本访问：</span></span><br><span class="line"><span class="keyword">const</span> sharedUint8Array = <span class="keyword">new</span> <span class="built_in">Uint8Array</span>(<span class="keyword">new</span> SharedArrayBuffer(<span class="number">4</span>));</span><br><span class="line">port2.postMessage(sharedUint8Array);</span><br><span class="line"></span><br><span class="line"><span class="comment">// This transfers a freshly created message port to the receiver.</span></span><br><span class="line"><span class="comment">// This can be used, for example, to create communication channels between</span></span><br><span class="line"><span class="comment">// multiple `Worker` threads that are children of the same parent thread.</span></span><br><span class="line"><span class="comment">// 这会将新创建的消息端口传输到接收方。</span></span><br><span class="line"><span class="comment">// 例如，这可以用于在它们之间创建多个`Worker`线程通信信道，它们是同一父线程的子节点。</span></span><br><span class="line"><span class="keyword">const</span> otherChannel = <span class="keyword">new</span> MessageChannel();</span><br><span class="line">port2.postMessage(&#123; <span class="attr">port</span>: otherChannel.port1 &#125;, [ otherChannel.port1 ]);</span><br></pre></td></tr></table></figure>
+<p>由于对象克隆使用结构化克隆算法，因此不会保留不可枚举的属性，属性访问器和对象原型。特别是，Buffer对象将在接收端作为普通的Uint8Arrays读取。</p>
+<p>将立即克隆消息对象，并且可以在发布后修改消息对象而不会产生副作用。</p>
+<p>有关此API背后的序列化和反序列化机制的更多信息，请参阅v8模块的序列化API。</p>
+<h4 id="port-ref"><a href="#port-ref" class="headerlink" title="port.ref()"></a>port.ref()</h4><p>新增于: v10.5.0</p>
+<p>与<code>unref（）</code>相反。如果它是唯一的活动句柄（默认行为），则在先前的已<code>unref（）</code>端口上调用<code>ref（）</code>将不会让程序退出。如果端口是已<code>ref（）</code>，再次调用<code>ref（）</code>将无效。</p>
+<p>如果使用<code>.on（&#39;message&#39;）</code>附加或删除侦听器，则端口将自动为已<code>ref（）</code>和已<code>unref（）</code>，具体取决于事件的侦听器是否存在。</p>
+<h4 id="port-start"><a href="#port-start" class="headerlink" title="port.start()"></a>port.start()</h4><p>新增于: v10.5.0</p>
+<p>开始在此<code>MessagePort</code>上接收消息。将此端口用作事件发射器时，一旦附加了<code>&#39;message&#39;</code>侦听器，就会自动调用此端口。</p>
+<p>此方法用于与Web <code>MessagePort</code> API进行奇偶校验。在Node.js中，它仅在没有事件侦听器时忽略消息。Node.js在处理<code>.onmessage</code>方面也存在分歧。设置它将自动调用<code>.start（）</code>，但是取消设置它会让消息排队，直到设置新的处理程序或丢弃端口。</p>
+<h4 id="port-unref"><a href="#port-unref" class="headerlink" title="port.unref()"></a>port.unref()</h4><p>新增于: v10.5.0</p>
+<p>如果这是事件系统中唯一的活动句柄，则在端口上调用unref（）将允许线程退出。如果端口已经是unref（），则再次调用unref（）将无效。</p>
+<p>如果使用<code>.on（&#39;message&#39;）</code>附加或删除侦听器，则端口将自动为已<code>ref（）</code>和已<code>unref（）</code>，具体取决于事件的侦听器是否存在。</p>
+<h3 id="Worker-类"><a href="#Worker-类" class="headerlink" title="Worker 类"></a>Worker 类</h3><p>新增于: v10.5.0</p>
+<ul>
+<li>继承于: <a href="http://nodejs.cn/api/events.html" target="_blank" rel="noopener">EventEmitter</a></li>
+</ul>
+<p><code>Worker</code>类表示一个独立的 JavaScript 执行线程。大多数 Node.js API 都可以在其中使用。</p>
+<p>Worker环境中的显著差异如下：</p>
+<ul>
+<li>process.stdin，process.stdout 和 process.stderr 可以由父线程重定向。</li>
+<li>require（’worker_threads’）。isMainThread属性设置为false。</li>
+<li>require（’worker_threads’）。parentPort消息端口可用。</li>
+<li>process.exit（）不会停止整个程序，只是单个线程，而process.abort（）不可用。</li>
+<li>process.chdir（）和设置组或用户ID的进程方法不可用。</li>
+<li>process.env是父线程的环境变量的副本，除非另有说明。对一个副本的更改在其他线程中不可见，并且对于本机加载项不可见（除非将worker.SHARE_ENV作为env选项传递给Worker构造函数）。</li>
+<li>process.title无法修改。</li>
+<li>信号不会通过process.on（’…’）传递。</li>
+<li>由于调用了worker.terminate（），执行可能会在任何时候停止。</li>
+<li>来自父进程的IPC通道无法访问。</li>
+<li>不支持trace_events模块</li>
+<li>只有满足特定条件的情况下，才能从多个线程加载本机加载项。</li>
+</ul>
+<p>可以在其他Worker中创建Worker实例。</p>
+<p>与Web Workers和集群模块一样，可以通过线程间消息传递实现双向通信。在内部，Worker有一对内置的MessagePort，它们在创建Worker时已经相互关联。虽然父端的MessagePort对象未直接暴露，但其功能通过 worker.postMessage（）和父线程的Worker对象上的worker.on（’message’）事件暴露。</p>
+<p>要创建自定义消息传递通道（鼓励使用默认全局通道，因为它有助于分离关注点），用户可以在任一线程上创建MessageChannel对象，并通过预先存在的方式将该MessageChannel上的其中一个MessagePort传递给另一个线程频道，例如全局频道。</p>
+<p>有关如何传递更多信息，以及通过线程关口成功传输哪种JavaScript值，请参阅port.postMessage（）。</p>
+<figure class="highlight javascript"><table><tr><td class="code"><pre><span class="line"><span class="keyword">const</span> assert = <span class="built_in">require</span>(<span class="string">'assert'</span>);</span><br><span class="line"><span class="keyword">const</span> &#123;</span><br><span class="line">  Worker, MessageChannel, MessagePort, isMainThread, parentPort</span><br><span class="line">&#125; = <span class="built_in">require</span>(<span class="string">'worker_threads'</span>);</span><br><span class="line"><span class="keyword">if</span> (isMainThread) &#123;</span><br><span class="line">  <span class="keyword">const</span> worker = <span class="keyword">new</span> Worker(__filename);</span><br><span class="line">  <span class="keyword">const</span> subChannel = <span class="keyword">new</span> MessageChannel();</span><br><span class="line">  worker.postMessage(&#123; <span class="attr">hereIsYourPort</span>: subChannel.port1 &#125;, [subChannel.port1]);</span><br><span class="line">  subChannel.port2.on(<span class="string">'message'</span>, (value) =&gt; &#123;</span><br><span class="line">    <span class="built_in">console</span>.log(<span class="string">'received:'</span>, value);</span><br><span class="line">  &#125;);</span><br><span class="line">&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">  parentPort.once(<span class="string">'message'</span>, (value) =&gt; &#123;</span><br><span class="line">    assert(value.hereIsYourPort <span class="keyword">instanceof</span> MessagePort);</span><br><span class="line">    value.hereIsYourPort.postMessage(<span class="string">'the worker is sending this'</span>);</span><br><span class="line">    value.hereIsYourPort.close();</span><br><span class="line">  &#125;);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h4 id="new-Worker-filename-options"><a href="#new-Worker-filename-options" class="headerlink" title="new Worker(filename[,options])"></a>new Worker(filename[,options])</h4><ul>
+<li><code>filename</code> <string>  Worker的主脚本的路径。必须是以./或../开头的绝对路径或相对路径（即相对于当前工作目录）。如果options.eval为true，则这是一个包含JavaScript代码而不是路径的字符串。</string></li>
+<li><code>options</code> <object><ul>
+<li><code>env</code> <object>  如果设置，则指定Worker线程内process.env的初始值。作为一个特殊值，worker.SHARE_ENV可用于指定父线程和子线程应共享其环境变量;在这种情况下，对一个线程的process.env对象的更改也会影响另一个线程。默认值：process.env。</object></li>
+<li><code>eval</code><boolean> 如果为true，则将构造函数的第一个参数解释为在工作程序启动时执行的脚本。</boolean></li>
+<li><code>execArgv</code>&lt;string[]&gt;  传递给worker的节点CLI选项列表。不支持V8选项（例如<code>--max-old-space-size</code>）和影响进程的选项（例如<code>--title</code>）。如果设置，则将在worker中作为process.execArgv提供。默认情况下，选项将从父线程继承。</li>
+<li><code>stdin</code> <boolean> 如果将其设置为true，则worker.stdin将提供可写流，其内容将在Worker内显示为process.stdin。默认情况下，不提供任何数据。</boolean></li>
+<li><code>stdout</code><boolean> 如果将此值设置为true，则不会自动将worker.stdout传递给父级中的process.stdout。</boolean></li>
+<li><code>stderr</code><boolean> 如果将其设置为true，则worker.stderr将不会自动通过管道传递给父级中的process.stderr。</boolean></li>
+<li><code>worderData</code><any> 任何将被克隆并可用作需求的JavaScript值（’worker_threads’）。workerData。克隆将按照HTML结构化克隆算法中的描述进行，如果无法克隆对象（例如，因为它包含函数），则会引发错误。</any></li>
+</ul>
+</object></li>
+</ul>
+<h4 id="‘error’事件"><a href="#‘error’事件" class="headerlink" title="‘error’事件"></a>‘error’事件</h4><p>新增于: v10.5.0</p>
+<ul>
+<li><code>exitCode</code> <integer></integer></li>
+</ul>
+<p>一旦worker停止，就会发出<code>exit</code>事件。如果工作者通过调用<code>process.exit（）</code>退出，则exitCode参数将是传递的退出代码。如果worker终止，则exitCode参数将为1。</p>
+<h4 id="‘message’事件"><a href="#‘message’事件" class="headerlink" title="‘message’事件"></a>‘message’事件</h4><p>新增于: v10.5.0</p>
+<ul>
+<li><code>value</code><any>  传递的值</any></li>
+</ul>
+<p>当工作线程调用<code>require（&#39;worker_threads&#39;）.parentPort.postMessage（）</code>时，会发出<code>message</code>事件。有关更多详细信息，请参阅<code>port.on（&#39;message&#39;）</code>事件。</p>
+<h4 id="worker-postMessage-value-transferList"><a href="#worker-postMessage-value-transferList" class="headerlink" title="worker.postMessage(value[,transferList])"></a>worker.postMessage(value[,transferList])</h4><p>新增于: v10.5.0</p>
+<ul>
+<li><code>value</code><any></any></li>
+<li><code>transferList</code>&lt;Object[]&gt;</li>
+</ul>
+<p>通过<code>require（&#39;worker_threads&#39;）.parentPort.on（&#39;message&#39;）</code>向工作人员发送消息。有关更多详细信息，请参阅<code>port.postMessage（）</code>。</p>
+<h4 id="worker-ref"><a href="#worker-ref" class="headerlink" title="worker.ref()"></a>worker.ref()</h4><p>新增于: v10.5.0</p>
+<p>与<code>unref()</code>相反, 在已经<code>unref（）</code>的 worker上调用<code>ref（）</code>,如果它是唯一的活动句柄，则不会让程序退出（默认行为）。如果worker是已<code>ref（）</code>，再次调用<code>ref（）</code>将无效。</p>
+<h4 id="worker-stderr"><a href="#worker-stderr" class="headerlink" title="worker.stderr"></a>worker.stderr</h4><p>新增于: v10.5.0</p>
+<ul>
+<li>&lt;stream.Readable&gt;</li>
+</ul>
+<p>这是一个可读的流，包含写入工作线程内的<code>process.stderr</code>的数据。如果未将<code>stderr：true</code>传递给Worker构造函数，则数据将通过管道传递给父线程的<code>process.stderr</code>流。</p>
+<h4 id="worker-stdin"><a href="#worker-stdin" class="headerlink" title="worker.stdin"></a>worker.stdin</h4><p>新增于: v10.5.0</p>
+<ul>
+<li><null> | &lt;stream.Writable&gt;</null></li>
+</ul>
+<p>如果将<code>stdin：true</code>传递给Worker构造函数，则这是一个可写流。写入此流的数据将在工作线程中作为<code>process.stdin</code>提供。</p>
+<h4 id="worker-stdout"><a href="#worker-stdout" class="headerlink" title="worker.stdout"></a>worker.stdout</h4><p>新增于: v10.5.0</p>
+<ul>
+<li>&lt;stream.Readable&gt;</li>
+</ul>
+<p>这是一个可读的流，包含写入工作线程内的<code>process.stdout</code>的数据。如果未将<code>stdout：true</code>传递给Worker构造函数，则数据将通过管道传递给父线程的<code>process.stdout</code>流。</p>
+<h4 id="worker-terminate"><a href="#worker-terminate" class="headerlink" title="worker.terminate()"></a>worker.terminate()</h4><p>新增于: v10.5.0</p>
+<p>修改于: v12.5.0 此函数现在返回Promise。传递回调是不推荐的，并且在此版本之前没用，因为Worker实际上是同步终止的。终止现在是一个完全异步的操作。</p>
+<ul>
+<li>返回: <promise></promise></li>
+</ul>
+<p>尽快停止工作线程中的所有JavaScript执行。返回发出<code>exit</code>事件时满足的退出代码的<code>Promise</code>。</p>
+<h4 id="worker-threadId-1"><a href="#worker-threadId-1" class="headerlink" title="worker.threadId"></a>worker.threadId</h4><p>新增于: v10.5.0</p>
+<ul>
+<li><integer>
+
+</integer></li>
+</ul>
+<p>引用线程的整数标识符。在工作线程内部，它可以作为<code>require（&#39;worker_threads&#39;）.threadId</code>。对于单个进程内的每个Worker实例，此值是唯一的。</p>
+<h4 id="worker-unref"><a href="#worker-unref" class="headerlink" title="worker.unref()"></a>worker.unref()</h4><p>新增于: v10.5.0</p>
+<p>如果这是事件系统中唯一的活动句柄，则对worker调用<code>unref（）</code>将允许该线程退出。如果worker已经是<code>unref（）</code>，则再次调用<code>unref（）</code>将无效。</p>
+]]></content>
+      <tags>
+        <tag>Node</tag>
+        <tag>子线程</tag>
+        <tag>worker_threads</tag>
+        <tag>工作线程</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>都9012年了,你还在手动部署代码吗(二)</title>
+    <url>/2019/05/16/%E9%83%BD9012%E5%B9%B4%E4%BA%86-%E4%BD%A0%E8%BF%98%E5%9C%A8%E6%89%8B%E5%8A%A8%E9%83%A8%E7%BD%B2%E4%BB%A3%E7%A0%81%E5%90%97-%E4%BA%8C/</url>
+    <content><![CDATA[<h4 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h4><p>在写完基于 Webhooks 的<a href="https://juejin.im/post/5cab1a9ee51d452b1162526a" target="_blank" rel="noopener">“第一篇《都9012年了,你还在手动部署代码吗》”</a>之后,有同学评论到”至少你得用个 docker 啊””一对一嘛…感觉面试吹这个会被吊起来锤”….于是我决定出一篇基于 Docker 的自动部署文章 (:</p>
+<p>这是一篇利用 Docker 和 Gitlab-CI 的学习自动部署和实践的笔记,如果您是 Docker 资深玩家,跪求大佬不要吊锤;如果您是萌新,刚开始 Docker 学习之旅,那么希望笔记中的理解和操作能够对您有所帮助.</p>
+<p>然鹅,饱和的需求和人的惰性让第二篇拖到了今天ORZ!!! <del>王者峡谷一时爽,一直王者一直爽</del></p>
+<a id="more"></a>
+<h4 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h4><p>偷懒是第一生产力,当你享受过自动化带给你的便捷时,再也不会想回到手动打包部署上传的”石器时代”.</p>
+<h4 id="目标"><a href="#目标" class="headerlink" title="目标"></a>目标</h4><p>在本地开发完成 push 后,集成环境能够自动完成测试部署打包上传 FTP</p>
+<h5 id="前置条件"><a href="#前置条件" class="headerlink" title="前置条件"></a>前置条件</h5><ol>
+<li>位于内网服务器的 Gitlab 源码仓库(版本支持 Gitlab-CI )</li>
+<li>位于内网服务器的集成测试环境(能够 Pull 远程仓库代码)</li>
+<li>集成测试服务器能够安装 Docker</li>
+</ol>
+<h4 id="行动"><a href="#行动" class="headerlink" title="行动"></a>行动</h4><p>工欲善其事必先利其器,开始行动前有必要理解一波 Docker 和 Gitlab-CI 自动部署原理;</p>
+<p>这波要理解的东西有点多,不过不慌,我们一个一个来 !</p>
+<h5 id="Docker"><a href="#Docker" class="headerlink" title="Docker"></a><a href="http://www.docker.com" target="_blank" rel="noopener">Docker</a></h5><p><code>Docker 属于 Linux 容器的一种封装,提供简单易用的容器使用接口. 它将应用程序与该程序的依赖,打包在一个文件里面. 运行这个文件,就会生成一个虚拟容器. 程序在这个虚拟容器里运行,就好像在真实的物理机上运行一样. 有了 Docker,就不用担心环境问题.</code>  </p>
+<p>Docker 容器常常拿来和虚拟机 VM 相比较,提到 VM ,就不得不说….别提了,我还记得当年在大学的虚拟机课程,等虚拟机启动的时间里,老师可以寂寞地抽完几根烟…</p>
+<p>有几个概念我们需要理解一下:</p>
+<ul>
+<li>Image (镜像)</li>
+<li>Container (容器): 运行镜像</li>
+<li>Repository (仓库): 储存镜像</li>
+</ul>
+<p>我们首先根据文档在集成服务器上安装 Docker =&gt; <a href="https://yeasy.gitbooks.io/docker_practice/content/install/centos.html" target="_blank" rel="noopener">CentOS7上安装Docker</a></p>
+<p>不建议各位同学在window系统上尝试 Docker ,过程及其残忍</p>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">我在这次部署中常用的docker命令:</span><br><span class="line">docker search NAME 	搜索image镜像</span><br><span class="line">docker pull NAME	拉取image镜像</span><br><span class="line">docker run -d -p 2222:22 --name NAME &lt;IMAGE&gt;	后台运行IMAGE命名为NAME并映射容器端口22到宿主机端口2222(-d:后台运行 -p:端口映射)</span><br><span class="line">docker ps 			查看正在运行的docker容器</span><br><span class="line">docker images		查看本地所有镜像</span><br><span class="line">docker stop NAME 	停止容器</span><br><span class="line">docker rm 			删除容器</span><br><span class="line">docker exec -it &lt;IMAGE&gt; bash	以伪终端交互方式进入容器,运行bash</span><br></pre></td></tr></table></figure>
+<h5 id="理解Gitlab-CI自动部署原理"><a href="#理解Gitlab-CI自动部署原理" class="headerlink" title="理解Gitlab-CI自动部署原理"></a>理解Gitlab-CI自动部署原理</h5><p><code>本地仓库 -&gt; (push提交代码) -&gt; 远程仓库(Gitlab-CI) -&gt; (通知注册完成的runner) -&gt; 集成服务器(runner Executor执行命令)-&gt; 打包上传FTP</code></p>
+<p>通过简单的比较我们可以发现,整个流程和使用 webhooks 并无太大差别,但是区别于webhooks 使用 Token 请求具体服务, Gitlab-CI 会找出与这个工程相关联的Runner，并通知这些Runner, 然后这些Runner在宿主机上更新代码, 进行测试, 自动部署, 打包上传.</p>
+<p>我们可以把 Gitlab-CI 和 Runner 看做工厂和工人的关系, 工人在工厂里先注册, 工厂开工的时候通知工人干活 ~ </p>
+<h5 id="配置远程仓库Gitlab-CI"><a href="#配置远程仓库Gitlab-CI" class="headerlink" title="配置远程仓库Gitlab-CI"></a>配置远程仓库Gitlab-CI</h5><p>理解完原理后我们来配置(搞定)Gitlab-CI(Gitlab-8.0版本以后默认集成Gitlab-CI):</p>
+<p>找到项目 Project 的 Settings 中的 CI/CD, 点击 Runners settings.这时你会发现两种 Runners:</p>
+<ul>
+<li><strong>Shared Runners</strong>: 管理员才有资格创建的所有工程都能使用的 Runner</li>
+<li><strong>Specific Runners</strong>: 拥有访问权限的人为指定工程创建的 Runner</li>
+</ul>
+<p>这里我们使用 Specific Runner, 记住 Specific Runner 配置里的 <strong>URL</strong> 和 <strong>token</strong>, 等下我们就是利用这两个参数在集成服务器配置 Runner 和 Gitlab-CI 建立联系 !</p>
+<h5 id="集成服务器-宿主机-配置"><a href="#集成服务器-宿主机-配置" class="headerlink" title="集成服务器(宿主机)配置"></a>集成服务器(宿主机)配置</h5><p>这里 Gitlab-runner 的安装方式分两种:</p>
+<ul>
+<li>使用 yum install gitlab-ci-multi-runner安装</li>
+<li>使用 Docker 安装 Gitlab-runner </li>
+</ul>
+<p>我们这里使用 Docker 安装 Gitlab-runner , 注意: <a href="https://yeasy.gitbooks.io/docker_practice/content/install/mirror.html" target="_blank" rel="noopener">操作前修改 Docker 镜像源为国内源</a></p>
+<p>ps: 注意一下 Gitlab 和 Gitlab-runner 的版本是否匹配, 否则 runner 可能连不上 Gitlab-CI</p>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">下载Gitlab-runner</span><br><span class="line">docker search gitlab-runner</span><br><span class="line">docker pull gitlab/gitlab-runner</span><br><span class="line"></span><br><span class="line">运行Gitlab-runner,将容器gitlab-runner config.toml映射到主机,方便修改</span><br><span class="line">docker run -d --name gitlab-runner --restart always </span><br><span class="line">  -v /data/docker/gitlab-runner/config:/etc/gitlab-runner \</span><br><span class="line">  -v /var/run/docker.sock:/var/run/docker.sock \</span><br><span class="line">  gitlab/gitlab-runner</span><br><span class="line"></span><br><span class="line">进入Gitlab-runner bash</span><br><span class="line">docker exec -it gitlab-runner bash</span><br></pre></td></tr></table></figure>
+<h5 id="Gitlab-runner注册runner"><a href="#Gitlab-runner注册runner" class="headerlink" title="Gitlab-runner注册runner"></a>Gitlab-runner注册runner</h5><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">gitlab-runner register</span><br><span class="line"></span><br><span class="line">Please enter the gitlab-ci coordinator URL (e.g. https://gitlab.com/):</span><br><span class="line">gitlab-ci URL</span><br><span class="line"></span><br><span class="line">Please enter the gitlab-ci token for this runner:</span><br><span class="line">gitlab-ci Token</span><br><span class="line"></span><br><span class="line">Please enter the gitlab-ci description for this runner:</span><br><span class="line">输入runner名字/描述即可</span><br><span class="line"></span><br><span class="line">Please enter the gitlab-ci tags for this runner (comma separated):</span><br><span class="line">输入runner的tag *后面编辑.gitlab-ci.yml需要用到这个tag</span><br><span class="line"></span><br><span class="line">Whether to run untagged builds [true/false]:</span><br><span class="line">[false]: 是否运行没有tag的构建</span><br><span class="line"></span><br><span class="line">Whether to loack the Runner to current project [true/false]:</span><br><span class="line">[true]: 是否锁定此Runner到正确的project</span><br><span class="line"></span><br><span class="line">Registering runner... succeeded			runner=******</span><br><span class="line">Please enter the executor: docker, docker-ssh, shell, ssh, docker-ssh+machine, kubernetes, parallels, virtualbox, docker+machine:</span><br><span class="line">选择执行器类型 这里我们选docker</span><br><span class="line"></span><br><span class="line">Please enter the default Docker iamge (e.g. ruby: 2.1):</span><br><span class="line">选择执行Docker运行的image镜像 这里我打包了一个服务node环境镜像到本地使用 如果项目服务需要什么依赖,比如数据库之类的也可以打包到镜像中</span><br><span class="line"></span><br><span class="line">Runner registered successfully. Feel free to start it, but if it's running already the config should be automatically reloaded !</span><br><span class="line">此时Runner创建成功!</span><br><span class="line"></span><br><span class="line">docker restart gitlab-runner</span><br><span class="line">重启一下gitlab-runner</span><br></pre></td></tr></table></figure>
+<p>此时我们刷新 Gitlab-CI -&gt; Settings -&gt; CI/CD -&gt; Runners settings 页面可以看到我们刚刚注册的 Runner 已经出现了 !</p>
+<h5 id="项目-gitlab-ci-yml-配置"><a href="#项目-gitlab-ci-yml-配置" class="headerlink" title="项目 .gitlab-ci.yml 配置"></a>项目 .gitlab-ci.yml 配置</h5><p>Gitlab-CI 会在仓库发生 push 时通知 Runner 执行脚本动作,具体的脚本动作就需要我们在项目目中新建 .gitlab-ci.yml 编写:</p>
+<blockquote>
+<p>小贴士:</p>
+<p>stages 可以拥有多个不重名的 job</p>
+<p>我们可以根据自己项目的实际情况编写属于自己的 job</p>
+<p>script 定义由Runner执行的shell脚本或命令</p>
+<p>before_script 覆盖在作业之前执行的脚本或命令</p>
+<p>tags 定义job所适用的runner，tags为runner标签</p>
+<p>cache 定义需要被缓存的文件、文件夹列表</p>
+<p>具体更多配置推荐阅读<a href="https://docs.gitlab.com/ce/ci/yaml/README.html" target="_blank" rel="noopener">官方文档</a></p>
+</blockquote>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line"># 这是我的 .gitlab-ci.yml</span><br><span class="line">stages:</span><br><span class="line">  - test</span><br><span class="line">  - deploy</span><br><span class="line">  - package</span><br><span class="line"></span><br><span class="line"># 测试job</span><br><span class="line">test:</span><br><span class="line">  stage: test</span><br><span class="line">  script:</span><br><span class="line">    - npm config set registry https://registry.npm.taobao.org</span><br><span class="line">    - npm i</span><br><span class="line">    - npm run test</span><br><span class="line">  cache:</span><br><span class="line">    # key: &quot;$CI_BUILD_REF_NAME&quot;</span><br><span class="line">    paths:</span><br><span class="line">      - node_modules</span><br><span class="line">  tags:</span><br><span class="line">    - ego</span><br><span class="line"></span><br><span class="line"># 部署job   </span><br><span class="line">deploy-dev:</span><br><span class="line">  stage: deploy</span><br><span class="line">  before_script:</span><br><span class="line">   - echo &quot;Start to deploy to dev host&quot;</span><br><span class="line">  script:</span><br><span class="line">    - echo &quot;deploy front ....&quot;</span><br><span class="line">    - sh deploy-front.sh</span><br><span class="line">    - echo &quot;deploy backend ....&quot;</span><br><span class="line">    - sh ./app/deploy-backend.sh</span><br><span class="line">  only:</span><br><span class="line">    - /^release\/.*/</span><br><span class="line">  tags:</span><br><span class="line">    - dennis</span><br><span class="line">    - node</span><br><span class="line"></span><br><span class="line"># 打包job</span><br><span class="line">package:</span><br><span class="line">  stage: package </span><br><span class="line">  before_script:</span><br><span class="line">   - echo &quot;Start to deploy to dev host&quot;</span><br><span class="line">  only:</span><br><span class="line">    - /^release\/.*/</span><br><span class="line">  script:</span><br><span class="line">    - echo &quot;start package...&quot;</span><br><span class="line">    - sh package.sh $VERSION</span><br><span class="line">  when: manual</span><br><span class="line">  tags:</span><br><span class="line">    - dennis</span><br><span class="line">    - node</span><br></pre></td></tr></table></figure>
+<p>Gitlab CI/CD 的 Pipelines 中每一次提交的 stages 就是根据 .gitlab-ci.yml 中的配置形成的, 你可以在Pipelines 中看到你每一次提交的 job 执行情况(成功/失败/等待/取消等状态), 因为网络情况的失败除了可以自动重试外, 我们还可以手动点击重试.</p>
+<p>这里的 deploy-front.sh deploy-backend.sh package.sh 前后端部署打包命令就不详细展示了,大家可以根据自己的项目实际情况编写. </p>
+<p>ps: 这里要注意一下脚本命令在环境中的执行权限</p>
+<p>最后,今天的文章到这里就差不多要结束了,其实当中每个部分都可以深入学习很久,我在文章中也是最粗浅的运用,总目标都是为搭建一整套流程,运行畅通服务,如果您对其中某个部分比如 Dokcer , .gitliab-ci.yml 感兴趣,可以自主深入学习,我也在文章中给出了官网文档~</p>
+<h5 id="有关多机部署"><a href="#有关多机部署" class="headerlink" title="有关多机部署"></a>有关多机部署</h5><p>虽然Runner可以分布在不同的主机上，同一个主机上也可以有多个Runner。难道我们要在每个部署服务器上都安装运行 Gitlab-runner 吗 ? 这里引用我第一篇文章中 @<a href="https://juejin.im/user/5764d7312e958a0058199626" target="_blank" rel="noopener">Axetroy</a>老哥的评论:</p>
+<blockquote>
+<p>恕我直言，服务端需要安装配套工具(服务)的，都是垃圾。</p>
+<p>有 10 机器，就得给这 10 台机器安装工具(服务)，例如这里是用 nodejs  写的 hook 接受服务 (当然可以解决，自己基于 centerOS 打包一个 Docker 镜像，内置 nodejs 和 hook 服务，然后这 10 台机器就以这个镜像开启。当然这并不是所有的服务器商都支持自定义镜像)</p>
+<p>能纯客户端部署的，才是好的。在 CI 构建成功的阶段，只要 CI 的环境变量服务器 IP，端口，用户名和密码，就能通过 SSH 部署。</p>
+</blockquote>
+<h4 id="结果"><a href="#结果" class="headerlink" title="结果"></a>结果</h4><p>好了, 又构建失败发邮件了,待我去看看什么问题 (:</p>
+<p>最后的最后感谢强哥,在我学习使用 Docker 和 Gitlab-CI 的过程中给予的巨大帮助 ! ! !</p>
+]]></content>
+      <tags>
+        <tag>学习笔记</tag>
+        <tag>Docker</tag>
+        <tag>自动部署</tag>
+        <tag>Gitlab-runner</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>都9012年了,你还在手动部署代码吗</title>
+    <url>/2019/04/08/%E9%83%BD9012%E5%B9%B4%E4%BA%86-%E4%BD%A0%E8%BF%98%E5%9C%A8%E6%89%8B%E5%8A%A8%E9%83%A8%E7%BD%B2%E4%BB%A3%E7%A0%81%E5%90%97/</url>
+    <content><![CDATA[<h4 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h4><p>公司从当初的SVN代码版本控制,FTP手动上传项目代码zip压缩包,到如今的git代码版本控制,jenkins一键打包部署环境,已经初步完成了手动到自动的大跃进.回过头来看看自己的项目,还处在本地仓库修改代码 -&gt; 提交远程github仓库 -&gt; 自己上服务器手动pull最新分支代码的原始阶段.<del>不能忍</del></p>
+<p>OK,接下来让我们开始我们的进化<del>偷懒</del>之旅,大家一起跟随我的心路历程一起进化.</p>
+<h4 id="目标"><a href="#目标" class="headerlink" title="目标"></a>目标</h4><p>当我们本地仓库修改完成push远程仓库之后, 服务器能够自动拉取最新分支代码,自动完成项目部署.</p>
+<h5 id="前置条件-废话"><a href="#前置条件-废话" class="headerlink" title="前置条件(废话)"></a>前置条件(<del>废话</del>)</h5><ol>
+<li>有个本地仓库能够连接到远程仓库,能够push代码</li>
+<li>服务器仓库能够从远程仓库pull代码</li>
+<li>远程仓库有webhooks功能</li>
+</ol>
+<a id="more"></a>
+<h4 id="行动"><a href="#行动" class="headerlink" title="行动"></a>行动</h4><p>工欲善其事必先利其器,开始行动前有必要理解一波webhooks钩子自动部署原理;</p>
+<h5 id="webhooks自动部署原理"><a href="#webhooks自动部署原理" class="headerlink" title="webhooks自动部署原理"></a>webhooks自动部署原理</h5><figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">本地仓库 -&gt; (push提交代码) -&gt; 远程仓库(webhooks钩子) -&gt; (发送带有key的post请求) -&gt; 测试/生产服务器(执行部署脚本)</span><br></pre></td></tr></table></figure>
+<p>知悉了原理之后我们来看看我们需要准备些什么:</p>
+<ul>
+<li>带有webhooks的远程仓库(gitlab,github,gitee等等)</li>
+<li>能够接收post请求的服务和测试/生产服务器</li>
+<li>部署脚本(.sh)</li>
+</ul>
+<h5 id="远程仓库webhooks设置"><a href="#远程仓库webhooks设置" class="headerlink" title="远程仓库webhooks设置"></a>远程仓库webhooks设置</h5><p>远程仓库的webhooks设置你只需要找到具体位置点进去:</p>
+<ol>
+<li><p>URL: 设置post请求的地址(即服务器服务地址)</p>
+</li>
+<li><p>key: 这个key可以设置也可以不设置,建议设置,防止他人随意请求服务器接口然后自动疯狂拉代码部署,相当于一个验签</p>
+</li>
+</ol>
+<h5 id="部署脚本auto-build-sh"><a href="#部署脚本auto-build-sh" class="headerlink" title="部署脚本auto_build.sh"></a>部署脚本auto_build.sh</h5><p>部署脚本(.sh)就自由发挥,自己平时怎么手动部署的就咋写就完事了,创建文件<code>auto_build.sh</code>.Linux下创建目录使用<code>mkdir 目录名</code>,创建文件使用<code>touch 文件名</code>.</p>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">PROJECTNAME_PATH = '/usr/local/src/项目目录';</span><br><span class="line"></span><br><span class="line">echo "Starting deployment"</span><br><span class="line">cd $PROJECTNAME_PATH</span><br><span class="line">git checkout .</span><br><span class="line">git pull</span><br><span class="line">npm i</span><br><span class="line">gulp release</span><br><span class="line">pm2 start ecosystem.config.js</span><br><span class="line">echo "Finished"</span><br></pre></td></tr></table></figure>
+<p>执行脚本的时候注意一下用户权限的问题以及基本命令的全局安装.</p>
+<h5 id="编写服务deploy-js"><a href="#编写服务deploy-js" class="headerlink" title="编写服务deploy.js"></a>编写服务deploy.js</h5><p>接下来的重头戏就是构建起一个能够接收远程仓库post请求的服务,这同样也很简单.你可以借助插件<a href="https://github.com/rvagg/github-webhook-handler" target="_blank" rel="noopener">github-webhook-handler</a> 的帮助,快速建立起这样一个服务,创建文件<code>deploy.js</code>.</p>
+<p>ps: 这里的secret就是上面webhooks设置中的key</p>
+<figure class="highlight javascript"><table><tr><td class="code"><pre><span class="line"><span class="keyword">var</span> http = <span class="built_in">require</span>(<span class="string">'http'</span>)</span><br><span class="line"><span class="keyword">var</span> createHandler = <span class="built_in">require</span>(<span class="string">'github-webhook-handler'</span>)</span><br><span class="line"><span class="keyword">var</span> handler = createHandler(&#123; <span class="attr">path</span>: <span class="string">'/webhook'</span>, <span class="attr">secret</span>: <span class="string">'myhashsecret'</span> &#125;)</span><br><span class="line"></span><br><span class="line">http.createServer(<span class="function"><span class="keyword">function</span> (<span class="params">req, res</span>) </span>&#123;</span><br><span class="line">  handler(req, res, <span class="function"><span class="keyword">function</span> (<span class="params">err</span>) </span>&#123;</span><br><span class="line">    res.statusCode = <span class="number">404</span></span><br><span class="line">    res.end(<span class="string">'no such location'</span>)</span><br><span class="line">  &#125;)</span><br><span class="line">&#125;).listen(<span class="number">7777</span>)</span><br><span class="line"></span><br><span class="line">handler.on(<span class="string">'error'</span>, <span class="function"><span class="keyword">function</span> (<span class="params">err</span>) </span>&#123;</span><br><span class="line">  <span class="built_in">console</span>.error(<span class="string">'Error:'</span>, err.message)</span><br><span class="line">&#125;)</span><br><span class="line"></span><br><span class="line">handler.on(<span class="string">'push'</span>, <span class="function"><span class="keyword">function</span> (<span class="params">event</span>) </span>&#123;</span><br><span class="line">  <span class="built_in">console</span>.log(<span class="string">'Received a push event for %s to %s'</span>,</span><br><span class="line">    event.payload.repository.name,</span><br><span class="line">    event.payload.ref)</span><br><span class="line">&#125;)</span><br><span class="line"></span><br><span class="line">handler.on(<span class="string">'issues'</span>, <span class="function"><span class="keyword">function</span> (<span class="params">event</span>) </span>&#123;</span><br><span class="line">  <span class="built_in">console</span>.log(<span class="string">'Received an issue event for %s action=%s: #%d %s'</span>,</span><br><span class="line">    event.payload.repository.name,</span><br><span class="line">    event.payload.action,</span><br><span class="line">    event.payload.issue.number,</span><br><span class="line">    event.payload.issue.title)</span><br><span class="line">&#125;)</span><br></pre></td></tr></table></figure>
+<p>ps: 还可以设置当有人给自己仓库提issues时发邮件提醒自己23333333</p>
+<p>如果服务无法启动,报错类似<code>Error: Cannot find module &#39;github-webhook-handler&#39;</code>,可是依赖包明明已经全局安装过了.确认方法:</p>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">npm root -g							// 查看npm全局安装路径</span><br><span class="line">=&gt; /root/.nvm/versions/node/v9.10.1/lib/node_modules</span><br><span class="line"></span><br><span class="line">cd /root/.nvm/versions/node/v9.10.1/lib/node_modules</span><br><span class="line">ll 									// 查看目录文件确认依赖是否安装</span><br></pre></td></tr></table></figure>
+<p>确认安装后可以通过以下步骤解决:</p>
+<ol>
+<li>进入<code>deploy.js</code>所在目录</li>
+<li>执行以下命令</li>
+</ol>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">npm link github-webhook-handler</span><br></pre></td></tr></table></figure>
+<p>现在,你需要做的是将<code>auto_build.sh</code>和<code>deploy.js</code>结合起来.</p>
+<p>阅读上面代码,你会发现<code>handler</code>监听到<code>push</code>事件调用对应的函数,所以你要做的就是在函数中执行<code>auto_build.sh</code>命令,你需要在<code>deploy.js</code>添加以及更改如下代码</p>
+<figure class="highlight javascript"><table><tr><td class="code"><pre><span class="line"><span class="comment">// 新增runCmd函数</span></span><br><span class="line">funciton runCmd(cmd, args, callback) &#123;</span><br><span class="line">    <span class="keyword">var</span> spawn = <span class="built_in">require</span>(<span class="string">'child_process'</span>).spawn;				<span class="comment">// node子进程</span></span><br><span class="line">    <span class="keyword">var</span> child = spawn(cmd, args);</span><br><span class="line">    <span class="keyword">var</span> response = <span class="string">''</span>;</span><br><span class="line">    </span><br><span class="line">    child.stdout.on(<span class="string">'data'</span>, buffer =&gt; response += buffer.toStirng());</span><br><span class="line">    child.stdout.on(<span class="string">'end'</span>, () =&gt; callback(response));</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 修改push监听事件 我这里auto_build.sh和deploy.js位于同一目录文件中</span></span><br><span class="line">handler.on(<span class="string">'push'</span>, <span class="function"><span class="keyword">function</span>(<span class="params">event</span>) </span>&#123;</span><br><span class="line">   runCmd(<span class="string">'sh'</span>, [<span class="string">'./auto_build.sh'</span>], <span class="function"><span class="keyword">function</span>(<span class="params">text</span>) </span>&#123; <span class="built_in">console</span>.log(text) &#125;); </span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure>
+<p>ps: 可以通过<code>console.log()</code>在相应的步骤输出相应提示,方便查错</p>
+<h5 id="运行服务deploy-js"><a href="#运行服务deploy-js" class="headerlink" title="运行服务deploy.js"></a>运行服务deploy.js</h5><p>我们希望deploy服务能够一直运行在服务器上,当远程仓库发送post请求提示我们有新代码push的时候能够正常执行部署脚本.这时我们需要以守护进程的方式来启动<code>deploy.js</code>服务,当服务意外崩溃时能够重启服务,彻底解放我们的双手.</p>
+<p>这里提供两种方法供大家选择,都可以通过<code>npm</code>安装:</p>
+<ol>
+<li><code>forever</code>就是保证进程退出时，应用会自动重启。</li>
+</ol>
+<figure class="highlight javascript"><table><tr><td class="code"><pre><span class="line">forever start deploy.js		   				  <span class="comment">// 启动服务进程</span></span><br><span class="line">forever list								  <span class="comment">// 列出所有进程</span></span><br><span class="line">forever logs id								  <span class="comment">// 查看进程输出日志</span></span><br><span class="line">forever stop id								  <span class="comment">// 停止服务进程</span></span><br><span class="line">forever restart id							  <span class="comment">// 重启服务进程</span></span><br><span class="line">forever -m <span class="number">5</span> deploy.js						  <span class="comment">// 最多重启次数为5</span></span><br></pre></td></tr></table></figure>
+<ol start="2">
+<li><code>pm2</code>功能强大，除了重启进程以外，还能实时收集日志和监控。</li>
+</ol>
+<figure class="highlight javascript"><table><tr><td class="code"><pre><span class="line">pm2 start deploy.js		   				  <span class="comment">// 启动服务进程</span></span><br><span class="line">pm2 list								  <span class="comment">// 列出所有进程</span></span><br><span class="line">pm2 logs id								  <span class="comment">// 查看进程输出日志</span></span><br><span class="line">pm2 stop id								  <span class="comment">// 停止服务进程</span></span><br><span class="line">pm2 restart id							  <span class="comment">// 重启服务进程</span></span><br><span class="line">pm2 <span class="keyword">delete</span> id							  <span class="comment">// 删除服务进程</span></span><br></pre></td></tr></table></figure>
+<h5 id="Nginx反向代理"><a href="#Nginx反向代理" class="headerlink" title="Nginx反向代理"></a>Nginx反向代理</h5><p>因为我的服务器在腾讯云上面,7777端口并未放开,所以通过一个Nginx反向代理到服务器安全组开放端口.</p>
+<p>在远程仓库发送post测试请求前一定要确认</p>
+<p><strong>自己服务器安全组端口已放开!!!</strong></p>
+<p><strong>自己服务器安全组端口已放开!!!</strong></p>
+<p><strong>自己服务器安全组端口已放开!!!</strong></p>
+<p>重要的事情说三遍! 下面是我nginx配置</p>
+<figure class="highlight nginx"><table><tr><td class="code"><pre><span class="line"><span class="section">server</span> &#123;</span><br><span class="line">	<span class="attribute">listen</span> <span class="number">8080</span>;</span><br><span class="line">    <span class="attribute">server_name</span>	localhost;</span><br><span class="line">    </span><br><span class="line">    <span class="attribute">location</span> /webhook &#123;</span><br><span class="line">        <span class="attribute">proxy_pass</span> http://127.0.0.1:7777;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>ps: Linux下重启nginx,进入nginx的sbin目录运行命令<code>./nginx -s reload</code></p>
+<h5 id="Bug"><a href="#Bug" class="headerlink" title="Bug"></a>Bug</h5><p>Nginx启动 ! deploy服务启动 ! 远程仓库webhook设置完毕 ! 点击测试按钮 !</p>
+<p>然后……</p>
+<p><strong>报错!!!</strong>   (强颜欢笑and笑容逐渐消失.jpg</p>
+<figure class="highlight javascript"><table><tr><td class="code"><pre><span class="line">&#123;</span><br><span class="line">  <span class="string">"error"</span>: <span class="string">"No X-Hub-Signature found on request"</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>看了半天……才想起来我的项目代码远程仓库是码云gitee.com,因为github私人private仓库2019年2月之前都是需要付费的,所以涉及私人的项目代码我都选择了码云作为远程仓库,然而我的插件是<code>github-webhook-handler</code>!!!!能通才有鬼 TAT</p>
+<p>没关系,小问题.都到这一步了,男人怎么能说不行!</p>
+<p>先去github上搜下有没有对应gitee的webhook插件,要是没有就fork<code>github-webhook-handler</code>下来自己改下改成适配gitee码云的.果然让我搜到了<code>gitee-webhook-middleware</code>,然后<code>deploy.js</code>改一改</p>
+<figure class="highlight javascript"><table><tr><td class="code"><pre><span class="line"><span class="keyword">var</span> createHandler = <span class="built_in">require</span>(<span class="string">'gitee-webhook-middleware'</span>);</span><br><span class="line"><span class="keyword">var</span> handler = createHandler(&#123; <span class="attr">path</span>: <span class="string">'/webhook'</span>, <span class="attr">token</span>: <span class="string">'你的key'</span> &#125;);</span><br></pre></td></tr></table></figure>
+<p>重启服务,点击测试 !</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&#123;</span><br><span class="line">  &quot;ok&quot;: true</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>完美 ! </p>
+<p>上服务器一看项目代码还是旧的,妈耶还有坑…后来发现gitee的post请求事件是<code>Push Hook</code></p>
+<figure class="highlight javascript"><table><tr><td class="code"><pre><span class="line"><span class="comment">// handler.on('push', function() &#123;&#125;);</span></span><br><span class="line">handler.on(<span class="string">'Push Hook'</span>, <span class="function"><span class="keyword">function</span>(<span class="params"></span>) </span>&#123;&#125;);</span><br></pre></td></tr></table></figure>
+<p>至此,重新测试,项目代码更新成功 !</p>
+<h4 id="结果"><a href="#结果" class="headerlink" title="结果"></a>结果</h4><p><del>偷懒成功! 偷懒果然是工程师第一生产力</del></p>
+<p>现在每当我本地仓库push代码到远程仓库,服务器就会拉取最新版本代码自动部署.</p>
+<p>这只是我一次简单尝试,我们完全可以扩展自动化测试,自动化部署于一体,完成多人协作开发时的CI/CD,大大减少人力成本,减少人为错误的发生,提高大家的工作效率.</p>
+]]></content>
+      <tags>
+        <tag>学习笔记</tag>
+        <tag>git</tag>
+        <tag>自动部署</tag>
+        <tag>Webhooks</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>记一道题</title>
+    <url>/2019/03/25/%E8%AE%B0%E4%B8%80%E9%81%93%E9%A2%98/</url>
+    <content><![CDATA[<h4 id="题目"><a href="#题目" class="headerlink" title="题目"></a>题目</h4><figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">- 下面代码中 a 在什么情况下会打印 1 ?</span><br><span class="line">var a = ?;</span><br><span class="line">if (a == 1 &amp;&amp; a == 2 &amp;&amp; a == 3) &#123;</span><br><span class="line">  console.log(1);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>同事老哥分享在群里的一道题目,题目来源于<a href="https://github.com/Advanced-Frontend/Daily-Interview-Question/blob/master/datum/summary.md#%E7%AC%AC-38-%E9%A2%98%E4%B8%8B%E9%9D%A2%E4%BB%A3%E7%A0%81%E4%B8%AD-a-%E5%9C%A8%E4%BB%80%E4%B9%88%E6%83%85%E5%86%B5%E4%B8%8B%E4%BC%9A%E6%89%93%E5%8D%B0-1" target="_blank" rel="noopener">Daily-Interview-Question</a></p>
+<p>我看到题目二话没说来了一句<code>var a = (function() {console.log(1)})();</code>,直接把老哥们皮出了一阵省略号…</p>
+<p>其实这题考察的应该是<code>==</code>的隐式转换, 当引用类型在比较运算符时,隐式转换会调用本类型toString或valueOf方法.</p>
+<a id="more"></a>
+<h4 id="重写toString"><a href="#重写toString" class="headerlink" title="重写toString"></a>重写toString</h4><figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">var a = &#123;</span><br><span class="line">  num: 1,</span><br><span class="line">  toString() &#123;</span><br><span class="line">  	return ++this.num;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line">if (a == 1 &amp;&amp; a == 2 &amp;&amp; a == 3) &#123;</span><br><span class="line">  console.log(1);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">=&gt; 1</span><br></pre></td></tr></table></figure>
+<h4 id="重写valueOf"><a href="#重写valueOf" class="headerlink" title="重写valueOf"></a>重写valueOf</h4><figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">var a = &#123;</span><br><span class="line">  num: 1,</span><br><span class="line">  valueOf() &#123;</span><br><span class="line">  	return ++this.num;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line">if (a == 1 &amp;&amp; a == 2 &amp;&amp; a == 3) &#123;</span><br><span class="line">  console.log(1);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">=&gt; 1</span><br></pre></td></tr></table></figure>
+<p>总体思路就是当 a 获取一次值的时候返回值+1, 让其符合 if 条件语句从而打印 a</p>
+<p>那么我们还可以通过<code>defineProperty</code>重写对象的get方法实现</p>
+<h4 id="defineProperty"><a href="#defineProperty" class="headerlink" title="defineProperty"></a>defineProperty</h4><figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">var num = 1;</span><br><span class="line">Object.defineProperty(window, &apos;a&apos;, &#123; get: function() &#123; return ++num &#125; &#125;);</span><br><span class="line"></span><br><span class="line">if (a == 1 &amp;&amp; a == 2 &amp;&amp; a == 3) &#123;</span><br><span class="line">  console.log(1);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">=&gt; 1</span><br></pre></td></tr></table></figure>
+<p>我们除了通过<code>defineProperty</code>实现之外还可以通过<code>Proxy</code>实现, 这也正是Vue2.0和3.0数据绑定实现的区别</p>
+<h4 id="Proxy"><a href="#Proxy" class="headerlink" title="Proxy"></a>Proxy</h4><figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">var _a = 0;</span><br><span class="line">let a = new Proxy(&#123;&#125;, &#123;</span><br><span class="line">    get: function() &#123;</span><br><span class="line">        return ++_a;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;)</span><br><span class="line"></span><br><span class="line">if (a == 1 &amp;&amp; a == 2 &amp;&amp; a == 3) &#123;</span><br><span class="line">  console.log(1);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">=&gt; 1</span><br></pre></td></tr></table></figure>
+<h4 id="秀儿"><a href="#秀儿" class="headerlink" title="秀儿"></a>秀儿</h4><p>除了以上答案等实现方法外,还有个方法实现得很秀</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">let a = [1,2,3];</span><br><span class="line">a.join = a.shift;</span><br><span class="line"></span><br><span class="line">if( a == 1 &amp;&amp; a == 2 &amp;&amp; a == 3 ) &#123;</span><br><span class="line">console.log(1);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">=&gt; 1</span><br></pre></td></tr></table></figure>
+<p>a 赋值为数组<code>[1,2,3]</code>,然后将<code>Array.shift</code>方法重写<code>Array.join</code> 方法</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">shift() 方法用于把数组的第一个元素从其中删除，并返回第一个元素的值。</span><br><span class="line">join() 方法用于把数组中的所有元素放入一个字符串。</span><br></pre></td></tr></table></figure>
+<p>讲道理, 不是应该重写<code>Array.toString</code>方法,我将<code>a.join = a.shift;</code>改成<code>a.toString = a.shift;</code>运行</p>
+<p>果然, 控制台打印了1.</p>
+<p>后来上谷歌查询ECMA规范<a href="https://www.ecma-international.org/ecma-262/6.0/#sec-array.prototype.tostring" target="_blank" rel="noopener">22.1.3.27处</a> , <code>Array.toString</code>方法果然是调用<code>Array.join</code>方法</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">22.1.3.27 Array.prototype.toString ( )</span><br><span class="line">When the toString method is called, the following steps are taken:</span><br><span class="line"></span><br><span class="line">1. Let array be ToObject(this value).</span><br><span class="line">2. ReturnIfAbrupt(array).</span><br><span class="line">3. Let func be Get(array, &quot;join&quot;).</span><br><span class="line">4. ReturnIfAbrupt(func).</span><br><span class="line">5. If IsCallable(func) is false, let func be the intrinsic function %ObjProto_toString% (19.1.3.6).</span><br><span class="line">6. Return Call(func, array).</span><br><span class="line"></span><br><span class="line">NOTE </span><br><span class="line">	The toString function is intentionally generic; it does not require that its this value be 	an Array object. Therefore it can be transferred to other kinds of objects for use as a method.</span><br></pre></td></tr></table></figure>
+<p>学习了, 给出这个答案的人真的非常厉害 ! ! !</p>
+<h4 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h4><p> 一个人知识面就像是一个圆, 这个圆的边界即是你所未知的. 当你知道得越多的同时, 你所不知道的也就越多.</p>
+<p>路漫漫其修远兮, 吾将上下而求索.</p>
+]]></content>
+      <tags>
+        <tag>学习笔记</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>每天一点MySql</title>
+    <url>/2019/01/30/%E6%AF%8F%E5%A4%A9%E4%B8%80%E7%82%B9MySql/</url>
+    <content><![CDATA[<h2 id="写在前面"><a href="#写在前面" class="headerlink" title="写在前面"></a>写在前面</h2><p>时至今日,已经是我毕业工作的第0.5个年头了.遥想大二当年学的数据库原理,更多的是基于sql server 2008的,其中大部分知识已经回归了书本的怀抱.即使身为一名前端工程师,但平时工作中更多的是使用Node和sequlize框架和mysql数据库进行交互,感觉到有必要强化学习一下mysql知识.</p>
+<p>买了一本MySQL必知必会,每天至少保证一小时的阅读时间,并根据自己的水平,记录对应的阅读笔记.</p>
+<a id="more"></a>
+<h2 id="基础"><a href="#基础" class="headerlink" title="基础"></a>基础</h2><p>####连接到mysql</p>
+<ol>
+<li>本地服务器 localhost</li>
+<li>默认的端口 3306</li>
+<li>用户</li>
+<li>密码</li>
+</ol>
+<h4 id="了解mysql的简单指令"><a href="#了解mysql的简单指令" class="headerlink" title="了解mysql的简单指令"></a>了解mysql的简单指令</h4><figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">SHOW TABLES 				// 返回当前选择的数据库内可用表的列表</span><br><span class="line">SHOW COLUMNS FROM 表名	   // 返回所有列(Field, Type, Null, Key, Default, Extra)</span><br><span class="line">DESCRIBE 表名 			   // 同上,为SHOW COLUMNS的一种快捷方式</span><br><span class="line">SHOW STATUS					// 显示广泛的服务器状态信息</span><br><span class="line">SHOW CREATE DATABASE		// 显示创建数据库SQL语句</span><br><span class="line">SHOW CREATE TABLE			// 显示创建表SQL语句</span><br><span class="line">SHOW GRANTS					// 显示授予用户的安全权限</span><br><span class="line">SHOW ERRORS					// 显示服务器错误消息</span><br><span class="line">SHOW WARNINGS				// 显示服务器警告消息</span><br><span class="line">HELP SHOW					// 显示允许的SHOW语句</span><br></pre></td></tr></table></figure>
+<h4 id="SQL语句常用命令"><a href="#SQL语句常用命令" class="headerlink" title="SQL语句常用命令"></a>SQL语句常用命令</h4><blockquote>
+<p>多条SQL语句必须以分号 ( ; ) 分隔</p>
+<p>SQL语句不区分大小写,一般关键字使用大写,列名表名使用小写,更易于阅读和调试</p>
+<p>处理SQL语句是,其中所有空格都被忽略</p>
+</blockquote>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">SELECT *						// 通配符 ( * ), 返回所有</span><br><span class="line">SELECT DISTINCT XX FROM 表名	   // 检索出不同的值,DISTINCT应用于所有列而非前置列</span><br><span class="line">SELECT XX FROM 表名 LIMIT 5      // 检索返回不多于5行(LIMIT 3,4 返回从行3开始的4行)</span><br><span class="line">									MYSQL5 支持LIMIT 4 OFFSET 3 从行3开始取4行</span><br></pre></td></tr></table></figure>
+<ul>
+<li>排序数据 ORDER BY</li>
+</ul>
+<p>数据一般将以它在底层表中的出现的顺序显示,无排序检索应该认为顺序无异议; 如果数据后来进行过更新或删除, 则此顺序将会受到MySQL重用回收存储空间的影响</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">ORDER BY 						// 检索数据以默认ASC升序A~Z排序(ORDER BY xx DESC 降序)</span><br><span class="line">* 应位于FROM子句之后,若使用LIMIT,需位于ORDER BY之后;</span><br><span class="line">	是否区分大小写取决于数据库的设置</span><br></pre></td></tr></table></figure>
+<ul>
+<li>WHERE子句操作符</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&lt;&gt; 等价于 != 即不等于,不匹配检查</span><br><span class="line">字符串值用单引号 &apos;&apos; 括起</span><br><span class="line">BETWEEN 范围检查</span><br><span class="line">IS NULL 空值检查</span><br><span class="line">* NULL与不匹配,匹配过滤或不匹配过滤时不返回</span><br><span class="line"></span><br><span class="line">* 组合WHERE子句</span><br><span class="line">AND 							// 与</span><br><span class="line">OR  							// 或</span><br><span class="line"></span><br><span class="line">* 计算次序</span><br><span class="line">AND在计算次序中优先级更高</span><br><span class="line">... WHERE vid = 10002 OR vid = 10003 AND price &gt;= 10;</span><br><span class="line">理解为 检索条件由id为10002,或者id为10003且价格大于等于10的</span><br><span class="line">=&gt; ... WHERE vid = 10002 OR (vid = 10003 AND price &gt;= 10);</span><br><span class="line"></span><br><span class="line">如果要检索由id为10002或10003,且价格都大于等于10的,应使用括号提高优先级</span><br><span class="line">=&gt; ... WHERE (vid = 10002 OR vid = 10003) AND price &gt;= 10;</span><br><span class="line"></span><br><span class="line">检索id为10002或10003,除了使用OR操作符外,还可以</span><br><span class="line">... WHERE vid IN (10002, 10003);</span><br><span class="line">* IN操作符一般比OR操作符执行更快,语法清楚且直观</span><br><span class="line"></span><br><span class="line">NOT 操作符用来否定后跟条件的关键字</span><br><span class="line">... WHERE vid NOT IN (10002, 10003);</span><br></pre></td></tr></table></figure>
+<ul>
+<li>通配符过滤</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">LIKE &apos;%p&apos;					// p结尾</span><br><span class="line">LIKE &apos;p%&apos;					// p开头</span><br><span class="line">LIKE &apos;%p%&apos;					// 包含p</span><br><span class="line"></span><br><span class="line">* &apos;_&apos; 用途与&apos;%&apos;一样,但只匹配单个字符而不是多个</span><br><span class="line">* 尾空格可能会干扰通配符匹配,最好的办法是使用函数去掉首尾空格,亦或者首尾使用%</span><br><span class="line">* %通配符无法匹配 NULL</span><br></pre></td></tr></table></figure>
+<ul>
+<li>MySQL正则表达式</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">REGEXP (BINARY区分大小写) &apos;.000&apos;		// 匹配 000尾部</span><br><span class="line">* LIKE匹配整个列,REGEXP在列值内匹配</span><br><span class="line">* \\ 转义字符</span><br><span class="line">\\f 换页; \\n 换行; \\r 回车; \\t 制表; \\v 纵向制表; \\\ 匹配反斜杠\</span><br><span class="line"></span><br><span class="line">字符类</span><br><span class="line">[:alnum:]				任意字母和数字([a-zA-Z0-9])</span><br><span class="line">[:alpha:]				任意字符([a-zA-Z])</span><br><span class="line">[:blank:]				空格和制表([\\t])</span><br><span class="line">[:cntrl:]				ASCII控制字符(ASCII 0到31和127)</span><br><span class="line">[:digit:]				任意数字([0-9])</span><br><span class="line">[:graph:]				与[:print:]相同,但不包括空格</span><br><span class="line">[:lower:]				任意小写字母([a-z])</span><br><span class="line">[:print:]				任意可打印字符</span><br><span class="line">[:punct:]				既不在[:alnum:]又不在[:cntrl:]中的任意字符</span><br><span class="line">[:space:]				包括空格在内的任意空白字符([\\f\\n\\r\\t\\v])</span><br><span class="line">[:upper:]				任意大写字母([A-Z])</span><br><span class="line">[:xdigit:]				任意十六进制数字([a-fA-F0-9])</span><br><span class="line"></span><br><span class="line">重复元字符</span><br><span class="line">*						0个或多个匹配</span><br><span class="line">+						1个或多个匹配(&#123;1,&#125;)</span><br><span class="line">?						0个或1个匹配(&#123;0,1&#125;)</span><br><span class="line">&#123;n&#125;						指定数目的匹配</span><br><span class="line">&#123;n,&#125;					不少于指定数目的匹配</span><br><span class="line">&#123;n,m&#125;					匹配数目的范围(m不超过255)</span><br><span class="line"></span><br><span class="line">定位元字符</span><br><span class="line">^						文本的开始</span><br><span class="line">$						文本的结束</span><br><span class="line">[[:&lt;:]]					词的开始</span><br><span class="line">[[:&gt;:]]					词的结束</span><br><span class="line"></span><br><span class="line">简单的正则表达式测试</span><br><span class="line">SELECT &apos;hello&apos; REGEXP &apos;[0-9]&apos;;		=&gt; 返回0</span><br><span class="line">REGEXP检查总返回0或1</span><br></pre></td></tr></table></figure>
+<ul>
+<li>函数</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">Concat()				// 拼接函数</span><br><span class="line">Trim()					// 去除首尾空格(RTrim(), LTrim())</span><br><span class="line">Now()					// 返回当前日期和时间</span><br><span class="line">Left()					// 返回串左边的字符</span><br><span class="line">Length()				// 返回串的长度</span><br><span class="line">Locate()				// 找出串的一个子串</span><br><span class="line">Lower()					// 将串转换为小写</span><br><span class="line">Right()					// 返回串右边的字符</span><br><span class="line">Soundex()				// 返回串的SOUNDEX值</span><br><span class="line">SubString()				// 返回子串的字符</span><br><span class="line">Upper()					// 将串转换为大写</span><br><span class="line"></span><br><span class="line">日期和时间处理函数</span><br><span class="line">NOW()					// 返回当前的日期和时间</span><br><span class="line">CURDATE()				// 返回当前的日期</span><br><span class="line">CURTIME()				// 返回当前的时间</span><br><span class="line">DATE()					// 提取日期或日期/时间表达式的日期部分</span><br><span class="line">EXTRACT()				// 返回日期/时间按的单独部分</span><br><span class="line">DATE_ADD()				// 给日期添加指定的时间间隔</span><br><span class="line">DATE_SUB()				// 从日期减去指定的时间间隔</span><br><span class="line">DATEDIFF()				// 返回两个日期之间的天数</span><br><span class="line">DATE_FORMAT()			// 用不同的格式显示日期/时间</span><br><span class="line"></span><br><span class="line">常用数值处理函数</span><br><span class="line">Abs()					// 绝对值</span><br><span class="line">Cos()					// 角度余弦</span><br><span class="line">Exp()					// 指数值</span><br><span class="line">Mod()					// 除操作的余数</span><br><span class="line">Pi()					// 圆周率</span><br><span class="line">Rand()					// 随机数</span><br><span class="line">Sin()					// 角度正弦</span><br><span class="line">Sqrt()					// 平方根</span><br><span class="line">Tan()					// 角度正切</span><br><span class="line"></span><br><span class="line">SQL聚集函数</span><br><span class="line">AVG()					// 平均值,忽略NULL行</span><br><span class="line">COUNT()					// 行数,COUNT(*)包括空值NULL和非空值,COUNT(column)忽略NULL行</span><br><span class="line">MAX()					// 最大值</span><br><span class="line">MIN()					// 最小值</span><br><span class="line">SUM()					// 列值和</span><br><span class="line">* MySQL允许MIN()和MAX()返回文本数据列</span><br><span class="line">* 指定DISTINCT参数只包含不同值,必须指定列名</span><br></pre></td></tr></table></figure>
+<ul>
+<li>别名 AS</li>
+</ul>
+<ol>
+<li>通过<code>AS</code>别名执行算术计算<code>SELECT a*b AS c FROM 表名</code></li>
+<li>表别名不返回到客户机,列别名返回客户机</li>
+</ol>
+<ul>
+<li>分组数据 GROUP BY</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">GROUP BY 				// 必须出现在WHERE之后,ORDER BY之前</span><br><span class="line">WITH ROLLUP				// 可以得到分组汇总</span><br><span class="line">HAVING					// 过滤分组,WHERE过滤行</span><br><span class="line">* WHERE分组前过滤,HAVING分组后过滤</span><br><span class="line">* 使用GROUP BY的时候应给也给出ORDER BY子句</span><br><span class="line">* 顺序: SELECT =&gt; FROM =&gt; WHERE =&gt; GROUP BY =&gt; HAVING =&gt; ORDER BY =&gt; LIMIT</span><br></pre></td></tr></table></figure>
+<ul>
+<li>子查询</li>
+</ul>
+<p>子查询嵌套不如联结,不建议疯狂套子查询;</p>
+<ul>
+<li>联结 JION</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">* 完全限定列名,用.分隔表名和列名</span><br><span class="line">* 笛卡尔积 没有WHERE子句设定联结条件的表关系返回笛卡尔积,即n*m,故所有联结都应有WHERE子句</span><br><span class="line"></span><br><span class="line">1.内部联结/等值联结</span><br><span class="line">SELECT v_name, p_name, p_price</span><br><span class="line">FROM v INNER JOIN p</span><br><span class="line">ON v.v_id = p.v_id;</span><br><span class="line">* 性能考虑,联结的表越多,性能下降越厉害</span><br><span class="line"></span><br><span class="line">2.自联结</span><br><span class="line">SELECT p1.p_id, p1.p_name</span><br><span class="line">FROM p AS p1, p AS p2</span><br><span class="line">WHERE p1.v_id = p2.v_id</span><br><span class="line">AND p2.p_id = &apos;DTNTR&apos;;</span><br><span class="line"></span><br><span class="line">3.自然联结</span><br><span class="line">* 排除多次出现,使每个列只返回一次</span><br><span class="line">* 自己选择SELECT 列来完成自然联结</span><br><span class="line"></span><br><span class="line">4.外部联结</span><br><span class="line">LEFT OUTER JOIN				// 左联结</span><br><span class="line">RIGHT OUTER JOIN			// 右联结</span><br></pre></td></tr></table></figure>
+<ul>
+<li>组合查询 UNION</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">UNION 每个查询必须包含相同的列,表达式或聚集函数(次序无需相同)</span><br><span class="line">* UNION从查询结果集中自动去除了重复行;如不需自动去重,使用UNION ALL</span><br><span class="line">* 只能使用一条ORDER BY子句,必须出现在最后一条SELECT语句后</span><br><span class="line">* 可以使用UNION组合查询应用不同的表</span><br></pre></td></tr></table></figure>
+<ul>
+<li>全文本搜索 FULLTEXT</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">* 并不是所有引擎都支持全文本搜索,MyISAM支持全文本搜索,InnoDB不支持</span><br><span class="line">* 启用全文本搜索支持在创建表时接受FULLTEXT(列名),自动维护索引</span><br><span class="line">* 导入数据应该先导入,再修改表,定义FULLTEXT</span><br><span class="line">Match()指定被搜索的列, Against指定要使用的搜索表达式</span><br><span class="line">WITH QUERY EXPANSION 查询扩展</span><br><span class="line">IN BOOLEAN MODE 布尔文本搜索</span><br></pre></td></tr></table></figure>
+<ul>
+<li>插入数据 INSERT</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">INSERT操作可能很耗时,特别是有很多索引需要更新时,遇到重要的SELECT可以给INSERT操作降权</span><br><span class="line">INSERT LOW_PRIORITY INTO</span><br><span class="line">* 单条INSERT插入多条语句比多条INSERT语句快</span><br><span class="line"></span><br><span class="line">插入检索出的数据, 无需关注SELECT中的列名,可包含WHERE子句</span><br><span class="line">INSERT SELECT</span><br></pre></td></tr></table></figure>
+<ul>
+<li>更新和删除数据 UPDATE DELETE</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">UPDATE 表名 SET 列名 = &apos;&apos;(, 列名 = &apos;&apos;) WHERE ...;</span><br><span class="line">* IGNORE关键字 UPDATE IGNORE 表名... 错误发生前更新的所有行恢复原值</span><br><span class="line">删除指定列使用UPDATE ... SET 列名 = NULL</span><br><span class="line"></span><br><span class="line">DELETE FROM 表名 WHERE ...; </span><br><span class="line">* 生产上一般使用软删除,不使用物理删除</span><br><span class="line">* 不要忽略WHERE子句</span><br><span class="line">* 更快的删除 TRUNATE TABLE,实际是删除原来的表并重建一个表,而不是逐行删除</span><br></pre></td></tr></table></figure>
+<ul>
+<li>创建和操纵表 CREATE/ALTER</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">ddl 数据定义语言(data define language)</span><br><span class="line">dml 数据操纵语言(data manipulation language)</span><br><span class="line"></span><br><span class="line">* 表需要主键,使用AUTO_INCREMENT,自增长,每个表只允许存在一个,且必须被索引</span><br><span class="line">CREATE TABLE 表名</span><br><span class="line">(</span><br><span class="line">	列名		类型		NOT NULL	AUTO_INCREMENT,</span><br><span class="line">	...</span><br><span class="line">	PRIMARY KEY(列名),</span><br><span class="line">	FULLTEXT(列名)</span><br><span class="line">) ENGINE=MyISAM;</span><br><span class="line">* 表不存在时创建,应在表名后加 IF NOT EXISTS</span><br><span class="line">* NULL值是没有值,不是空串(&apos;&apos;),空串是一个有效值</span><br><span class="line">* 默认值,MySQL不允许使用函数作为默认值,只支持常量</span><br><span class="line"></span><br><span class="line">引擎类型</span><br><span class="line">1.InnoDB 可靠的事务处理引擎,不支持全文本搜索</span><br><span class="line">2.MEMORY 功能等同于MyISAM,数据存储在内存(非磁盘),速度很快,适用于临时表</span><br><span class="line">3.MyISAM 性能极高的引擎,支持全文本搜索,不支持事务处理</span><br><span class="line">* 引擎类型可以混用</span><br><span class="line">* 外键不能跨引擎,使用一个引擎的表不能引用具有使用不同引擎的表的外键</span><br><span class="line"></span><br><span class="line">ALTER TABLE 更新表</span><br><span class="line">* 使用前应做一个完整的备份(模式和数据的备份),数据库表的操作不能更改</span><br><span class="line"></span><br><span class="line">DROP TABLE 删除表</span><br><span class="line">RENAME TABLE 表名 TO 新表名</span><br></pre></td></tr></table></figure>
+<ul>
+<li>视图 VIEW</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">CREATE VIEW 创建视图</span><br><span class="line">SHOW CREATE VIEW viewname 查看创建视图的语句</span><br><span class="line">DROP VIEW viewname</span><br><span class="line">CREATE OR REPLACE VIEW 更新视图</span><br><span class="line"></span><br><span class="line">* 视图是虚拟的表,只包含使用时动态检索数据的查询</span><br><span class="line">* 使用多个联结和过滤创建复杂视图会发现性能下降得很厉害</span><br><span class="line">* 一般,视图用于检索SELECT,不用于INSERT,UPDATE和DELETE</span><br></pre></td></tr></table></figure>
+<ul>
+<li>存储过程 PROCEDURE</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">使用存储过程</span><br><span class="line">CALL procedurename(arg, arg...)</span><br><span class="line"></span><br><span class="line">创建存储过程</span><br><span class="line">CREATE PROCEDURE procedurename()</span><br><span class="line">BEGIN</span><br><span class="line">	...</span><br><span class="line">	</span><br><span class="line">END;</span><br><span class="line"></span><br><span class="line">* mysql命令行客户机的分隔符</span><br><span class="line">为防止语法错误,可以临时更改命令行使用程序的语句分隔符:</span><br><span class="line">DELIMITER //</span><br><span class="line">CREATE PROCEDURE procedurename()</span><br><span class="line">BEGIN</span><br><span class="line">	SELECT ...</span><br><span class="line">	FROM 表名;</span><br><span class="line">END //</span><br><span class="line">DELIMITER ;</span><br><span class="line"></span><br><span class="line">删除存储过程</span><br><span class="line">DROP PROCEDURE (IF EXISTS) procedurename; (IF EXISTS 仅当存在时删除,可以避免错误)</span><br><span class="line"></span><br><span class="line">* 一般存储过程并不显示结果,而是把结果返回给你指定的变量  DECIMAL(8,2)=&gt;8位数字,小数点2位</span><br><span class="line">CREATE PROCEDURE procedurename(</span><br><span class="line">	OUT pl DECIMAL(8,2),</span><br><span class="line">	OUT ph DECIMAL(8,2),</span><br><span class="line">	OUT pa DECIMAL(8,2),</span><br><span class="line">)</span><br><span class="line">BEGIN</span><br><span class="line">	...</span><br><span class="line">END;</span><br><span class="line"></span><br><span class="line">* MySQL支持IN(传递给存储过程),OUT(从存储过程中传出)和INOUT(对存储过程传入和传出)</span><br><span class="line"></span><br><span class="line">使用procedurename存储过程</span><br><span class="line">call procedurename(@pl, @ph, @pa);</span><br><span class="line">* 所有MySQL变量都必须以@开始</span><br><span class="line"></span><br><span class="line">检查存储过程</span><br><span class="line">SHOW PROCEDURE STATUS</span><br><span class="line">显示过程状态结果(指定过滤模式)</span><br><span class="line">SHOW PROCEDURE STATUS LIKE &apos;ordertotal&apos;;</span><br></pre></td></tr></table></figure>
+<ul>
+<li>游标 CURSOR</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">游标主要用于交互式应用,其中给用户需要滚动屏幕上的数据,并对数据进行浏览或作出更改.</span><br><span class="line"></span><br><span class="line">创建游标</span><br><span class="line">CREATE PROCEDURE procedurename()</span><br><span class="line">BEGIN</span><br><span class="line">	DECLARE cursorname CURSOR</span><br><span class="line">	FOR</span><br><span class="line">	SELECT order_num FROM orders;</span><br><span class="line">END;</span><br><span class="line">* 存储过程处理完成后,游标就消失</span><br><span class="line"></span><br><span class="line">打开和关闭游标</span><br><span class="line">OPEN cursorname;</span><br><span class="line">CLOSE cursorname;</span><br><span class="line">* 使用声明过的游标不需要再次声明,用OPEN语句打开即可</span><br><span class="line">* 隐含关闭,MySQL会在END时自动关闭它</span><br><span class="line"></span><br><span class="line">* DECLARE定义的局部变量必须在定义任意游标或句柄之前定义,而句柄必须在游标之后定义</span><br><span class="line">* REPEAT 语句对游标进行循环</span><br></pre></td></tr></table></figure>
+<ul>
+<li>触发器 TRIGGER</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">事件发生时自动执行</span><br><span class="line"></span><br><span class="line">创建触发器 *保持每个数据库的触发器名唯一</span><br><span class="line">CREATE TRIGGER triggername AFTER INSERT ON 表名</span><br><span class="line">FOR EACH ROW SELECT &apos;Product added&apos;;</span><br><span class="line"></span><br><span class="line">* 仅有表支持触发器,视图不支持</span><br><span class="line">* 每个表最多支持6个触发器</span><br><span class="line">			INSERT</span><br><span class="line">BEFORE		UPDATE		AFTER</span><br><span class="line">			DELETE</span><br><span class="line">通常,BEFORE用于数据验证和净化,确保传入表中的数据确实是需要的数据</span><br><span class="line">			</span><br><span class="line">删除触发器</span><br><span class="line">DROP TRIGGER triggername;</span><br><span class="line">* 触发器不能更新或覆盖,必须先删除,然后重新创建</span><br><span class="line"></span><br><span class="line">INSERT触发器</span><br><span class="line">TODO</span><br><span class="line">DELETE触发器</span><br><span class="line">TODO</span><br><span class="line">UPDATE触发器</span><br><span class="line">TODO</span><br><span class="line"></span><br><span class="line">* MySQL触发器不支持CALL语句,这表示不能从触发器内调用存储过程,存储过程代码需复制到触发器内</span><br></pre></td></tr></table></figure>
+<ul>
+<li>事务 TRANSACTION</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">用来维护数据库的完整性,保证成批的MySQL操作要么完全执行,要么完全不执行</span><br><span class="line"></span><br><span class="line">事务 transaction 指一组SQL语句</span><br><span class="line">回退 rollback 指撤销指定SQL语句的过程</span><br><span class="line">提交 commit 指将未存储的SQL语句结果写入数据库表</span><br><span class="line">保留点 savepoint 指事务中是指的临时占位符,可以对它发布回退</span><br><span class="line"></span><br><span class="line">控制事务处理</span><br><span class="line">1.将SQL语句分解为逻辑块</span><br><span class="line">2.明确规定数据何时回退,何时不回退</span><br><span class="line"></span><br><span class="line">使用ROLLBACK回退</span><br><span class="line">SELECT * FORM 表名;</span><br><span class="line">START TRANSATION;</span><br><span class="line">DELETE FROM 表名;</span><br><span class="line">ROLLBACK;</span><br><span class="line">* 无法回退SELECT语句,这样做也没有意义</span><br><span class="line">* 不能回退CREATE或DROP操作,不会被撤销</span><br><span class="line"></span><br><span class="line">使用COMMIT</span><br><span class="line">START TRANSACTION;</span><br><span class="line">DELETE FROM 表1 WHERE o_num = 20010;</span><br><span class="line">DELETE FROM 表2 WHERE o_num = 20010;</span><br><span class="line">COMMIT;</span><br><span class="line">如果第一条DELETE起作用,第二条失败,则DELETE不会被提交</span><br><span class="line"></span><br><span class="line">* COMMIT或ROLLBACK执行后,事务会自动关闭</span><br><span class="line"></span><br><span class="line">支持部分事务回退</span><br><span class="line">使用保留点,标识唯一名字</span><br><span class="line">SACEPOINT pointname</span><br><span class="line">* 保留点越多越好,在执行一条ROLLBACK或COMMIT后自动释放</span><br><span class="line">* MySQL5之后可以用RELEASE SAVEPOINT释放保留点</span><br></pre></td></tr></table></figure>
+<ul>
+<li>全球化和本地化</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">字符集/编码/校对</span><br><span class="line">字符集我们一般使用utf8mb4</span><br><span class="line"></span><br><span class="line">SHOW CHARACTER SET;		// 显示所有可用字符集及其默认描述和校对</span><br><span class="line">SHOW COLLATION;			// 显示所有可用的校对</span><br></pre></td></tr></table></figure>
+<ul>
+<li>安全管理</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">本地学习实践可以使用root用户,生产上不使用root用户,防止无意的错误</span><br><span class="line"></span><br><span class="line">创建用户账号</span><br><span class="line">CREATE USER name IDENTIFIED BY &apos;password&apos;;</span><br><span class="line">重命名用户账号</span><br><span class="line">RENAME USER name TO newname;</span><br><span class="line">删除用户账户</span><br><span class="line">DROP USER name;</span><br><span class="line"></span><br><span class="line"> 查看用户权限</span><br><span class="line"> SHOW GRANTS FOR name;</span><br><span class="line"> &apos;USAGE&apos; =&gt; 无权限</span><br><span class="line"> </span><br><span class="line"> GRANT SELECT ON 库名.* TO 用户名;</span><br><span class="line"> 允许用户在库所有表上使用SELECT</span><br><span class="line"> * GRANT反操作为REVOKE,用来撤销特定的权限</span><br><span class="line"> 简化多次授权</span><br><span class="line"> GRANT SELECT, INSERT ON 库名.* TO 用户名;</span><br><span class="line"> </span><br><span class="line"> 更改口令</span><br><span class="line"> SET PASSWORD FOR 用户名 = Password(&apos;密码&apos;);</span><br><span class="line"> * 不指定用户时,更新当前用户登录口令</span><br></pre></td></tr></table></figure>
+<ul>
+<li>数据库维护</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">FLUSH TABLES			// 刷新未写数据</span><br><span class="line"></span><br><span class="line">* 可以使用BACKUP TABLE或SELECT INTO OUTFILE转储所有数据到某个外部文件</span><br><span class="line">* 数据可以用RESTORE TABLE来复原</span><br><span class="line"></span><br><span class="line">ANALYZE TABLE 表名;		// 检查表键是否正确</span><br><span class="line">CHECK TABLE 表名;</span><br><span class="line">* 尽量手动启动服务器</span><br><span class="line"></span><br><span class="line">查看日志文件</span><br><span class="line">1.错误日志 hostname.err 位于data目录,可用--log-error命令行选项更改</span><br><span class="line">2.查询日志 hostname.log 位于data目录,可用--log命令行选项更改</span><br><span class="line">3.二进制日志 hostname-bin 位于data目录,可用--log-bin命令行选项更改</span><br><span class="line">4.缓慢查询日志 hostname-slow.log 位于data目录,可用--log-slow-queries命令行选项更改</span><br><span class="line"></span><br><span class="line">FLUSH LOGS来刷新和重新开始所有日志文件</span><br></pre></td></tr></table></figure>
+<ul>
+<li>改善性能</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">MySQL是一个多用户多线程的DBMS,如果任务重某一个执行缓慢,则所有请求都会执行缓慢</span><br><span class="line">SHOW PROCESSLIST 显示所有活动进程及其线程ID和执行时间</span><br><span class="line">KILL 终结某个特定的进程,需管理员权限</span><br><span class="line"></span><br><span class="line">* 索引改善数据检索的性能,但损害数据插入,删除和更新的性能.根据情况添加索引.</span><br><span class="line">* LIKE很慢,一般最好使用FULLTEXT</span><br><span class="line"></span><br><span class="line">* 最重要的规则就是,每条规则在某些条件下都会被打破</span><br><span class="line">我的理解就是 任何无视环境背景情况的规则都是瞎逼逼</span><br></pre></td></tr></table></figure>
+<h2 id="进阶"><a href="#进阶" class="headerlink" title="进阶"></a>进阶</h2><p><del>这本书真的很基础,进阶的内容需要我从另外的地方去探索!</del></p>
+]]></content>
+      <tags>
+        <tag>学习笔记</tag>
+        <tag>mySql</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>[转]如何撰写精彩的技术博客文章</title>
+    <url>/2019/01/22/%E8%BD%AC-%E5%A6%82%E4%BD%95%E6%92%B0%E5%86%99%E7%B2%BE%E5%BD%A9%E7%9A%84%E6%8A%80%E6%9C%AF%E5%8D%9A%E5%AE%A2%E6%96%87%E7%AB%A0/</url>
+    <content><![CDATA[<p>— 从创意到精致结果的五个步骤</p>
+<blockquote>
+<p>原文链接：<a href="https://medium.freecodecamp.org/how-to-write-a-great-technical-blog-post-414c414b67f6" target="_blank" rel="noopener">https://medium.freecodecamp.org/how-to-write-a-great-technical-blog-post-414c414b67f6</a></p>
+</blockquote>
+<p>我已经在开源社区工作了近 5 年，建立和推广包括 Meteor 和 Apollo 在内的开发者工具。在那个时候，我发现博客是传播思想的最有效方式之一。</p>
+<p>写博文不像视频或会谈需要花费很长时间来准备，是个受众广且很容易完成的。我个人也从写作中获得了很多好处：它帮助我组织了自己的想法，向人们传播了我喜欢的技术，还让人们知道了我。</p>
+<p>2014 年我发布了第一篇博文，到现在我已经在 Medium 上写了 68 篇文章了，其中一些文章有超过 50k 的浏览次数和 1000 个粉丝。我还为我的朋友和同事编辑过很多帖子。经过那段时间的锻炼，我已经有了一个把概念实现到发布成文的策略。</p>
+<a id="more"></a>
+<p>在本文中，我们将介绍撰写帖子的过程的五个主要步骤：</p>
+<ul>
+<li>全力找一个好主题</li>
+<li>明确目标和受众</li>
+<li>有一个好的开头结尾并且内容翔实</li>
+<li>获得反馈并进行迭代</li>
+<li>添加最后润色：包装，发布和宣传</li>
+</ul>
+<p>让我们进入第一步吧！</p>
+<h2 id="1-全力找一个好主题"><a href="#1-全力找一个好主题" class="headerlink" title="1.全力找一个好主题"></a>1.全力找一个好主题</h2><p>你需要先有一些想法才能开始写作。 那些想要开始写博客的人跟我说，没有想法通常是他们的主要阻碍问题。</p>
+<p>最简单的策略是写你所知道的。 如果你花了很多时间学习某些东西，并且你认为你可以在几分钟内解释它，那么你将为读者提供很多价值。</p>
+<p>另一个想法是写一个某个区域没有的内容。 例如，目前关于如何申请技术会议的帖子不多，因此有关这方面的内容可填补社区空白。</p>
+<p>以下是可以使用的一些特定类型的帖子。 示例来自 Apollo 博客上与 GraphQL 相关的帖子：</p>
+<ol>
+<li><p>实现特定目标的分步指南：“使用 FlatList 在 React Native 中构建一个出色的可滚动列表”或“使用 Apollo 和 Recompose 简化您的 React 组件”。 这些对于那些想要快速做一个 demo 的读者来说非常棒。</p>
+</li>
+<li><p>对特定主题的深入调查：“使用 GraphQL 中的可空性”或“GraphQL 查询的剖析”。 如果你的目标受众是对此感兴趣并且想要用一杯咖啡的时间来了解更多知识的话，这些内容会非常有用。</p>
+</li>
+<li><p>围绕一个常用主题较为有用的清单：“调用 GraphQL API 的 4 种简单方法”或“静态 GraphQL 查询的 5 种好处”。 这是一个有趣，轻量级的阅读，因为你不必阅读整体，是很容易利用碎片时间来完成的。</p>
+</li>
+</ol>
+<p>还有一些共同关注的问题，现在来打消这些疑虑：</p>
+<ol>
+<li><p>关于这个话题已经被讨论过了。 不要担心。 即使这个想法以前被写过，你也可以用自己的视角，来阐述在你这种特定环境下的不同做法。</p>
+</li>
+<li><p>我的想法不够有趣。 我的很多朋友和同事都不写，因为他们担心他们的结论可能很无聊或显而易见。 这很正常啊！ 如果你是某一方面的专家，那么理所当然你所写的结论对你来说会很无聊。关键是你的观众还不知道那些东西呢。</p>
+</li>
+</ol>
+<p>即使说了这么多，在最后也很难预测什么样的主题能成为一个精彩（火）的文章，哪样的不会，并且往往是坚持写或换个文章，而不是一个精彩的主题。 我的主要建议是尝试写几个不同的东西，看看哪些有用。</p>
+<h2 id="2-明确目标和受众"><a href="#2-明确目标和受众" class="headerlink" title="2.明确目标和受众"></a>2.明确目标和受众</h2><p>既然你已了解自己的主题，那么需要为自己的帖子提供受众群体和目标。 谁会阅读它，他们将从中获得什么？</p>
+<p>你的目标需要具体，以便你可以将所有精力集中在一个主要想法上。 对于这篇文章，目标不能只是“写博客”。 我需要一个更具体的目标：</p>
+<ul>
+<li>受众：想要开始撰写博客的人，特别是有关技术主题的人，但还没有做到。</li>
+<li>目标：为人们提供一套具体的步骤和指示，以便他们可以开始。</li>
+</ul>
+<p>一旦有了这些，通过删除任何没有用的东西来保证你的文章主旨，避免添加额外的细节，因为他们需要有关联。 我发现相对简洁的帖子，阅读时间在 5-10 分钟时是成功概率最大的。</p>
+<p>了解观众的知识背景能够根据他们现有的知识提炼文章，有助于确定如何发布和宣传文章的内容。 例如，我希望在 freeCodeCamp 上发布这个，因为目标受众中的很多人可能已经阅读过该出版物。</p>
+<h2 id="3-有一个好的开头结尾并且内容翔实"><a href="#3-有一个好的开头结尾并且内容翔实" class="headerlink" title="3.有一个好的开头结尾并且内容翔实"></a>3.有一个好的开头结尾并且内容翔实</h2><p>当文章结构走向奇怪时，会让人迷惑。 剧情曲折在虚构的短篇小说中可能是一个很大的好处。但如果能让读者获得想要的知识，那么这会是一篇更容易被阅读完的技术文章。 良好的文章结构，可以让读者顺利完成阅读。</p>
+<h3 id="介绍"><a href="#介绍" class="headerlink" title="介绍"></a>介绍</h3><p>文章的第一段或第二段一般既不能吸引读者的注意也不会让他们失去兴趣。开篇可以用一小段话和一副大图来帮助读者理解文章的主旨。然后，告诉读者他们阅读此文会知道什么。提前揭秘可能很诱人，但要注意：如果你没有好的提示，读者就不会围绕这个点去阅读。</p>
+<h3 id="中间"><a href="#中间" class="headerlink" title="中间"></a>中间</h3><p>现在已经告诉读者会阅读什么，请满足他们的期待！您可以根据自己的需要随意添加详细信息，并在途中留下标志性文章以引导他们。多多使用标题，编号列表等来帮助读者了解他们阅读到文章的哪个部分，使他们能够跳读到他们最感兴趣的部分。</p>
+<h3 id="结论"><a href="#结论" class="headerlink" title="结论"></a>结论</h3><p>不要在文章末尾一下子就结束。如果你的读者已经读完了所有的内容，他们仍然会关注最后还有什么。给他们一个所学东西的快速总结，一篇文章的最后也可能只是告诉他们如果感兴趣就快行动起来吧。</p>
+<p>关于结构部分，我所建议的也许不是最有创意的，应该还有其他方法可以做到更好。 但简单的结构是与读者沟通的最直接方式。</p>
+<h2 id="4-获得反馈并进行迭代"><a href="#4-获得反馈并进行迭代" class="headerlink" title="4.获得反馈并进行迭代"></a>4.获得反馈并进行迭代</h2><p>在你阅读之前，你不会知道人们会从你的写作中得到什么。这才是你所设想的主题，目标，文章细节和结构真正受到考验的地方。如果想获得好结果，则不能跳过此步骤。</p>
+<p>当你想要获得反馈意见时，你可能觉得自己有点强势，或者你可能会担心这会产生负面影响，但是人们比你期望的更愿意提供帮助。在将文章发布到外面之前，最好先了解一下如何发布文章效果会更好。当我把这些都考虑进去时，我得到了一些非常有价值的反馈，使得文章内容更好，更有针对性。</p>
+<p>你应该向你的读者问些什么呢？我的主要建议是尽可能保持开放性。尽量不要事先解释你的意图。按原样移交草案，并询问您的审稿人他们从中得到了什么或应该更改什么。当互联网上有人遇到您的文章时，他们是没有任何额外的（和读者认识啊这种的）背景的独立个体。</p>
+<p>从反馈中验证的主要内容是：此帖子是否会实现您在第 2 步中确定的目标？保持迭代，直到你确定能明确目标和受众。</p>
+<h2 id="5-添加最后润色：包装，发布和宣传"><a href="#5-添加最后润色：包装，发布和宣传" class="headerlink" title="5.添加最后润色：包装，发布和宣传"></a>5.添加最后润色：包装，发布和宣传</h2><p>既然你已经有了这个想法，目标，结构和一些反馈，那么现在是时候对所有东西进行润色并发布它了。</p>
+<h3 id="包装"><a href="#包装" class="headerlink" title="包装"></a>包装</h3><p>想出一个好的标题和副标题，并确保你的文章至少有一张图。这是人们在 Twitter 或 Facebook 上分享文章时会看到的内容，也是让人们对阅读此文感兴趣的机会。</p>
+<p>文章看起来和感觉起来都要很专业，这十分重要，这样才能够让内容真正有意义。最低目标应该是在文章中没有拼写错误，语法错误或奇怪的格式。如果您有一位非常善于发现小细节的朋友，请让他们在发布前仔细阅读。</p>
+<p>在 freeCodeCamp 上发布文章也有一些关于编写样式和格式的好建议。既然你已经在你的文章中投入了太多的精力，那么额外增加一点努力来真正地完善它使之受众更广泛是非常值得的。</p>
+<p>最后，请备注上引用的作品或帮助审核和修改帖子的人来表达谢意。</p>
+<h3 id="发布"><a href="#发布" class="headerlink" title="发布"></a>发布</h3><p>终于到了这一步！选择你计划发布文章的网站，以便最有可能覆盖你的受众群体。Medium 通常是技术文章的汇集地，让人们很容易看到你的文章。</p>
+<p>关于奖励，尝试将你的文章发布到相关的技术网站中，以便于他们帮助分享你的文章 - 由此考虑，我选择了 freeCodeCamp，因为我认为这篇文章与他们的读者有关。如果你也想这样做，请按以下方式提交你的文章。你感兴趣的领域的技术网站也可能正在寻找文章，所以不要害怕联系！</p>
+<h3 id="宣传"><a href="#宣传" class="headerlink" title="宣传"></a>宣传</h3><p>虽然你已经发布了文章，但是还没完事！如果你希望人们看到你撰写的内容并从中获取价值，请务必在读者可能会浏览的地方分享。这可能包括 Facebook 群组，Reddit，黑客新闻，LinkedIn 或任何其他平台。此外，请务必在你自己的社交媒体帐户（如 Twitter）上分享你的创作。你的朋友会很高兴阅读，分享和赞成你写的东西！</p>
+<p>现在，你已经完成了。去喝咖啡或散步 - 从开始到结束一篇博文都是不小的壮举。阅读社区的任何反馈和回复，以便你可以不断改进。当你有另一个想法时，就再去写一篇吧！</p>
+<h2 id="练习没有替代品"><a href="#练习没有替代品" class="headerlink" title="练习没有替代品"></a>练习没有替代品</h2><p>在写作时，我们只是介绍了五个最重要的事情，从提出想法到发布。 现在你已经阅读过了，你尝试应用这个建议，看看哪些对你有用。</p>
+<p>我会留下最后一点建议。 我在过去 3 年中从博客中学到的主要内容是，我绝对无法预测哪些文章会无人问津，哪些文章最终会成为一个完整的系列。 有时候，我会花费好几天的时间来打磨一篇文章的每个细节，不允许一点错误。 也有时候，只是在深夜花了几个小时写的“GraphQL vs. REST”，成为了我有史以来最热门的文章。</p>
+<p>因此，即使你的第一篇，第二篇或第三篇文章没有成功，也要继续尝试新的东西，把你的想法写出来，并随着时间的推移而改进。 世界想要听到你要说的话。 去告诉他们！</p>
+<p>非常感谢 Anvisha Pai，Angela Zhang，Katie Siegel 和 freeCodeCamp 的编辑帮助审阅这篇文章。</p>
+<p>本文转自<a href="https://juejin.im/post/5c336723f265da61117a7812?utm_source=gold_browser_extension" target="_blank" rel="noopener">掘金</a>,译者为 幸运儿.</p>
+]]></content>
+      <categories>
+        <category>转载</category>
+      </categories>
+      <tags>
+        <tag>转载</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>Hexo使用theme/next主题部分无法推送github远程仓库</title>
+    <url>/2019/01/05/Hexo%E4%BD%BF%E7%94%A8theme-next%E4%B8%BB%E9%A2%98%E9%83%A8%E5%88%86%E6%97%A0%E6%B3%95%E6%8E%A8%E9%80%81github%E8%BF%9C%E7%A8%8B%E4%BB%93%E5%BA%93/</url>
+    <content><![CDATA[<h2 id="Hexo使用theme-next主题部分无法推送github远程仓库"><a href="#Hexo使用theme-next主题部分无法推送github远程仓库" class="headerlink" title="Hexo使用theme/next主题部分无法推送github远程仓库"></a>Hexo使用theme/next主题部分无法推送github远程仓库</h2><h4 id="关键词-Hexo-next-github-git-submodule-data-files-next-yml"><a href="#关键词-Hexo-next-github-git-submodule-data-files-next-yml" class="headerlink" title="关键词: Hexo, next, github, git submodule, data files, next.yml"></a>关键词: Hexo, next, github, git submodule, data files, next.yml</h4><h4 id="前置步骤"><a href="#前置步骤" class="headerlink" title="前置步骤"></a>前置步骤</h4><ol>
+<li><p>你想要用hexo+github搭建自己的博客(master构建部署分支/hexo编辑分支)</p>
+<p><del>这种方法你的博客在github上是透明的哦</del>~</p>
+</li>
+<li><p>使用<code>git clone</code>的方式下载了theme/next的库包</p>
+</li>
+<li><p>在hexo分支上推送博客内容, 换台电脑<code>git clone</code>自己的博客仓库  </p>
+<p>​</p>
+</li>
+</ol>
+<h4 id="产生的问题"><a href="#产生的问题" class="headerlink" title="产生的问题"></a>产生的问题</h4><p>​    在新电脑上<code>git clone</code>的仓库hexo分支中theme/next文件是空的, 在github上查看next文件发现为submodule形式. 也就是你如果想要在新电脑上编辑自己的博客, 那么你需要重新<code>git clone</code>官方next远程仓库.也就是说你此前next主题相关的主题配置<code>_config.yml</code>, 你已经丢失了!!!<del>除非你去旧电脑上copy(手动滑稽.ipg</del></p>
+<p><del>我不信就我一个人会有这个问题,所以我就去next的github的issue查了一下,果然有跟我一样问题的大兄弟,不过人家在2016年提出问题并得到解决了</del></p>
+<a id="more"></a>
+<h4 id="解决方案"><a href="#解决方案" class="headerlink" title="解决方案"></a>解决方案</h4><p>此时分两种情况:</p>
+<p>如果你已经对next主题进行自己的定制化修改, 那么你需要方案①;</p>
+<p>如果你只是对next主题文件<code>_config.yml</code>进行了简单的修改, 那么你需要方案②;</p>
+<ol>
+<li>fork + submodule</li>
+<li>使用Hexo data files配置主题 Theme configurations using Hexo data files</li>
+</ol>
+<p><del>因为目前我只需求对主题简单配置,并且能够在公司or家里电脑能够同步配置,所以我使用的方案②,具体操作如下 很简单;</del></p>
+<p>方案②:</p>
+<p>通过这个Data Files，你可以将所有的主题配置放置在站点的 <code>source/_data/next.yml</code> 文件中。原先放置在 站点配置文件 中的选项可以迁移到新的位置，同时，主题配置文件可以不用做任何修改。若后续版本有配置相关的改动时，你仅需在 <code>next.yml</code> 中做相应调整即可</p>
+<ol>
+<li>请先确保你所使用的 Hexo 版本在 3 以上</li>
+<li>在站点的 <code>source/_data</code> 目录下新建 <code>next.yml</code> 文件（<code>_data</code>目录可能需要新建）</li>
+<li>迁移站点配置文件和主题配置文件中的配置到 <code>next.yml</code> 中</li>
+<li>使用 <code>--config source/_data/next.yml</code> 参数启动服务器, 生成或者部署。<br>  例如: <code>hexo clean --config source/_data/next.yml &amp;&amp; hexo g --config source/_data/next.yml</code>。</li>
+</ol>
+<h4 id="写在最后"><a href="#写在最后" class="headerlink" title="写在最后"></a>写在最后</h4><p>这样你就可以愉快的开始自己的hexo博客之旅啦~</p>
+<p>希望可以帮助到更多的人!</p>
+<p>ps: 本篇文章参考了<a href="https://github.com/iissnan/hexo-theme-next/blob/master/README.cn.md" target="_blank" rel="noopener">官方文档</a>和<a href="https://github.com/iissnan/hexo-theme-next/issues/932" target="_blank" rel="noopener">官方issue#932</a></p>
+]]></content>
+      <tags>
+        <tag>学习笔记</tag>
+        <tag>git</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>Hello World</title>
+    <url>/2018/12/26/hello-world/</url>
+    <content><![CDATA[<p>Welcome to <a href="https://hexo.io/" target="_blank" rel="noopener">Hexo</a>! This is your very first post. Check <a href="https://hexo.io/docs/" target="_blank" rel="noopener">documentation</a> for more info. If you get any problems when using Hexo, you can find the answer in <a href="https://hexo.io/docs/troubleshooting.html" target="_blank" rel="noopener">troubleshooting</a> or you can ask me on <a href="https://github.com/hexojs/hexo/issues" target="_blank" rel="noopener">GitHub</a>.</p>
+<a id="more"></a>
+<h2 id="Quick-Start"><a href="#Quick-Start" class="headerlink" title="Quick Start"></a>Quick Start</h2><h3 id="Create-a-new-post"><a href="#Create-a-new-post" class="headerlink" title="Create a new post"></a>Create a new post</h3><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ hexo new <span class="string">"My New Post"</span></span><br></pre></td></tr></table></figure>
+<p>More info: <a href="https://hexo.io/docs/writing.html" target="_blank" rel="noopener">Writing</a></p>
+<h3 id="Run-server"><a href="#Run-server" class="headerlink" title="Run server"></a>Run server</h3><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ hexo server</span><br></pre></td></tr></table></figure>
+<p>More info: <a href="https://hexo.io/docs/server.html" target="_blank" rel="noopener">Server</a></p>
+<h3 id="Generate-static-files"><a href="#Generate-static-files" class="headerlink" title="Generate static files"></a>Generate static files</h3><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ hexo generate</span><br></pre></td></tr></table></figure>
+<p>More info: <a href="https://hexo.io/docs/generating.html" target="_blank" rel="noopener">Generating</a></p>
+<h3 id="Deploy-to-remote-sites"><a href="#Deploy-to-remote-sites" class="headerlink" title="Deploy to remote sites"></a>Deploy to remote sites</h3><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ hexo deploy</span><br></pre></td></tr></table></figure>
+<p>More info: <a href="https://hexo.io/docs/deployment.html" target="_blank" rel="noopener">Deployment</a></p>
+]]></content>
+      <categories>
+        <category>Testing</category>
+      </categories>
+      <tags>
+        <tag>start</tag>
+      </tags>
+  </entry>
+</search>
