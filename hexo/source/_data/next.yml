@@ -144,8 +144,8 @@ custom_file_path:
 # ---------------------------------------------------------------
 
 favicon:
-  small: /images/favicon-16x16-next.png
-  medium: /images/favicon-32x32-next.png
+  small: /img/favicon-16x16-next.ico
+  medium: /img/favicon-32x32-next.ico
   apple_touch_icon: /images/apple-touch-icon-next.png
   safari_pinned_tab: /images/logo.svg
   #android_manifest: /images/manifest.json
@@ -724,8 +724,8 @@ changyan:
 # For more information: https://valine.js.org, https://github.com/xCss/Valine
 valine:
   enable: true
-  appid: HRMs0FRq2lmTD56HRPGuU1gy
-  appkey:  IPm49wJVuTGvq0QAtbW2US8u
+  appid: 0eqPQtB6e7uCjsmgrsImcXIt-9Nh9j0Va
+  appkey:  Vod4o2YkNQiEOsmd0VYQ0HXA
   notify: false # Mail notifier
   verify: false # Verification code
   placeholder: Creeper? # Comment box placeholder
